@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>수학 풀이 코칭 v0.3</title>
+  <title>수학 풀이 코칭 v0.4</title>
 
   <!-- PWA 연결: GitHub Pages 하위 경로(/math-coach/) 기준 -->
   <link rel="manifest" href="/math-coach/manifest.json">
@@ -44,24 +44,39 @@
     .small{font-size:12px;color:#9aa3b2}
     .progress{height:6px;background:#0b1020;border-radius:999px;overflow:hidden;margin-top:8px}
     .bar{height:100%;width:0;background:#6ea8fe;transition:width .2s}
+
+    /* 미리보기 + 선택 박스(크롭) */
+    #preview-wrap{position:relative;background:#0b1020;border:1px solid #23263a;border-radius:10px;padding:10px}
+    #img-preview{max-width:100%;display:none;border-radius:8px}
+    #crop-box{position:absolute;border:2px dashed #6ea8fe;background:rgba(110,168,254,.15);display:none;pointer-events:none}
+    .crop-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   </style>
 </head>
 <body>
 <header>
-  <h1>수학 풀이 코칭 v0.3</h1>
-  <p>사진 → 글자 인식(OCR) → 수식 변환 → 단계 풀이/검산. <span class="badge">학습 보조용</span></p>
+  <h1>수학 풀이 코칭 v0.4</h1>
+  <p>사진 → 문제 영역 선택(자르기) → 글자 인식(OCR) → 수식 변환 → 단계 풀이/검산. <span class="badge">학습 보조용</span></p>
 </header>
 
 <div class="container">
 
-  <!-- 사진으로 입력 -->
+  <!-- 사진으로 입력 + 영역 선택 -->
   <section class="card" id="camera-input">
-    <h3>사진으로 입력(카메라/앨범)</h3>
+    <h3>사진으로 입력(카메라/앨범) + 문제 영역 선택</h3>
     <div class="row">
       <div class="col">
         <input id="img-file" type="file" accept="image/*" capture="environment">
+        <div id="preview-wrap" style="margin-top:10px">
+          <img id="img-preview" alt="미리보기">
+          <div id="crop-box"></div>
+        </div>
+        <div class="crop-btns">
+          <button id="btn-ocr-all">전체 인식</button>
+          <button id="btn-ocr-crop" class="primary">선택 영역만 인식</button>
+          <button id="btn-ocr-clear">선택 초기화</button>
+        </div>
         <div class="progress"><div class="bar" id="ocr-bar"></div></div>
-        <p class="small">깨끗한 인쇄물, 수식만 보이게 찍을수록 인식률이 좋아집니다. (필기는 초기에 정확도가 낮을 수 있어요)</p>
+        <p class="small">팁: 문제식만 보이게 네모로 드래그해 선택하세요. 인쇄물·밝은 사진일수록 인식률이 높아요.</p>
       </div>
       <div class="col">
         <label>인식된 텍스트(검토/수정 가능)</label>
@@ -79,7 +94,7 @@
     </div>
   </section>
 
-  <!-- 빠른 입력(텍스트) -->
+  <!-- 텍스트 빠른 입력 -->
   <section class="card" id="quick-input">
     <h3>텍스트로 빠르게 입력</h3>
     <div class="row">
@@ -461,7 +476,7 @@
     sysResult.innerHTML += `<div class="hint">${(ok1&&ok2)?'<span class="ok">검산 통과</span>':'<span class="bad">검산 실패</span>'} — 식1: ${ (a1*x + b1*y).toFixed(6)} vs ${c1}, 식2: ${(a2*x + b2*y).toFixed(6)} vs ${c2}</div>`;
   };
 
-  // ===== 텍스트 수식 자동 파서 & OCR 연결 =====
+  // ===== 텍스트 자동 파서 + OCR + 크롭(선택 영역) =====
   (function(){
     const $ = sel => document.querySelector(sel);
     const tabs = document.querySelectorAll('.tab');
@@ -475,7 +490,7 @@
       return s
         .replace(/\s+/g,'')
         .replace(/[−–—]/g,'-')
-        .replace(/[·×x]/g, m => (m==='x'?'x':'*')) // 곱셈 기호 통일(변수 x는 그대로)
+        .replace(/[·×]/g,'*')
         .replace(/[＝=]/g,'=')
         .replace(/[Ⅰl]/g,'1')
         .replace(/Ｏ/g,'0')
@@ -497,7 +512,7 @@
       return {a,b,c};
     }
     function parseQuadratic(str){
-      str=clean(str).replace(/x\^2/g,'x2'); // x^2 표기 보정
+      str=clean(str).replace(/x\^2/g,'x2');
       const m = str.match(/^([+\-]?\d*)x2([+\-]\d*)x([+\-]\d+)=0$/);
       if(!m) return null;
       const a = parseCoeff(m[1]??'');
@@ -526,7 +541,6 @@
     function fillLinear(v){ $('#lin-a').value=v.a; $('#lin-b').value=v.b; $('#lin-c').value=v.c; }
     function fillQuadratic(v){ $('#quad-a').value=v.a; $('#quad-b').value=v.b; $('#quad-c').value=v.c; }
     function fillSystem(v){ $('#sys-a1').value=v.a1; $('#sys-b1').value=v.b1; $('#sys-c1').value=v.c1; $('#sys-a2').value=v.a2; $('#sys-b2').value=v.b2; $('#sys-c2').value=v.c2; }
-
     function autoDetect(text){
       const s = clean(text);
       if (/[,;\n]/.test(s) && /y/.test(s)) return 'system';
@@ -534,9 +548,166 @@
       return 'linear';
     }
 
+    // OCR 공통
+    const fileInput = $('#img-file');
+    const bar = $('#ocr-bar');
+    const img = $('#img-preview');
+    const cropBox = $('#crop-box');
+    let imgFile = null, imgLoaded = false;
+    let imgNaturalW = 0, imgNaturalH = 0;
+
+    // 선택 박스(크롭) 상태
+    let dragging = false; let startX=0, startY=0;
+    let rect = {x:0,y:0,w:0,h:0};
+
+    function resetCrop(){
+      rect = {x:0,y:0,w:0,h:0};
+      cropBox.style.display='none';
+      cropBox.style.width='0px';
+      cropBox.style.height='0px';
+    }
+
+    function getRelXY(e){
+      const r = img.getBoundingClientRect();
+      const clientX = (e.touches? e.touches[0].clientX : e.clientX);
+      const clientY = (e.touches? e.touches[0].clientY : e.clientY);
+      let x = clientX - r.left;
+      let y = clientY - r.top;
+      x = Math.max(0, Math.min(x, img.clientWidth));
+      y = Math.max(0, Math.min(y, img.clientHeight));
+      return {x,y};
+    }
+
+    function updateCropBox(){
+      cropBox.style.display='block';
+      cropBox.style.left = rect.x + 'px';
+      cropBox.style.top = rect.y + 'px';
+      cropBox.style.width = rect.w + 'px';
+      cropBox.style.height = rect.h + 'px';
+    }
+
+    function pointerDown(e){
+      if(!imgLoaded) return;
+      dragging = true;
+      const p = getRelXY(e);
+      startX = p.x; startY = p.y;
+      rect = {x:startX, y:startY, w:0, h:0};
+      updateCropBox();
+      e.preventDefault();
+    }
+    function pointerMove(e){
+      if(!dragging) return;
+      const p = getRelXY(e);
+      const x1 = Math.min(startX, p.x);
+      const y1 = Math.min(startY, p.y);
+      const x2 = Math.max(startX, p.x);
+      const y2 = Math.max(startY, p.y);
+      rect = {x:x1, y:y1, w:(x2-x1), h:(y2-y1)};
+      updateCropBox();
+      e.preventDefault();
+    }
+    function pointerUp(e){
+      dragging = false;
+      e.preventDefault();
+    }
+
+    // 미리보기 영역에 터치/마우스 등록
+    const previewWrap = document.getElementById('preview-wrap');
+    previewWrap.addEventListener('mousedown', pointerDown);
+    previewWrap.addEventListener('mousemove', pointerMove);
+    window.addEventListener('mouseup', pointerUp);
+    previewWrap.addEventListener('touchstart', pointerDown, {passive:false});
+    previewWrap.addEventListener('touchmove', pointerMove, {passive:false});
+    window.addEventListener('touchend', pointerUp, {passive:false});
+
+    // 파일 선택 시: 미리보기 로드 + (원하면) 전체 인식
+    fileInput.addEventListener('change', async (e)=>{
+      imgFile = e.target.files && e.target.files[0];
+      resetCrop();
+      if(!imgFile){ imgLoaded=false; img.style.display='none'; return; }
+      const objectUrl = URL.createObjectURL(imgFile);
+      img.onload = ()=>{
+        imgNaturalW = img.naturalWidth;
+        imgNaturalH = img.naturalHeight;
+        imgLoaded = true;
+      };
+      img.src = objectUrl;
+      img.style.display='block';
+      // 자동 전체 인식(원치 않으면 주석 처리)
+      runOCR(imgFile);
+    });
+
+    // OCR 실행(파일/캔버스 공용)
+    async function runOCR(source){
+      bar.style.width='0%';
+      try{
+        const { data } = await Tesseract.recognize(source, 'eng', {
+          logger: m => {
+            if(m.status==='recognizing text' && m.progress!=null){
+              bar.style.width = Math.round(m.progress*100)+'%';
+            }
+          }
+        });
+        let t = (data.text || '').trim()
+          .replace(/\r/g,'')
+          .replace(/[·×]/g,'*')
+          .replace(/[＝=]/g,'=')
+          .replace(/[−–—]/g,'-')
+          .replace(/[^\dxxyy=\+\-\*\/\^\.\,\n]/gi,'');
+        t = t.split('\n').map(s=>s.trim()).filter(Boolean).join(', ');
+        document.getElementById('ocr-text').value = t || '';
+      }catch(err){
+        alert('OCR 중 오류가 발생했습니다. 사진을 다시 촬영해 주세요.');
+        console.error(err);
+      }finally{
+        setTimeout(()=> bar.style.width='0%', 700);
+      }
+    }
+
+    // 선택 영역만 OCR
+    function cropToCanvas(){
+      if(!imgLoaded || rect.w<10 || rect.h<10){ alert('선택한 영역이 너무 작습니다. 네모를 드래그해 문제 부분만 크게 선택해 주세요.'); return null; }
+      // 미리보기→원본 좌표 변환
+      const scale = imgNaturalW / img.clientWidth; // 가로 기준(세로도 같은 배율)
+      const sx = Math.round(rect.x * scale);
+      const sy = Math.round(rect.y * scale);
+      const sw = Math.round(rect.w * scale);
+      const sh = Math.round(rect.h * scale);
+
+      const cvs = document.createElement('canvas');
+      cvs.width = sw; cvs.height = sh;
+      const ctx = cvs.getContext('2d');
+
+      // 원본 이미지를 로드해 drawImage
+      const original = new Image();
+      original.crossOrigin = 'anonymous';
+      original.src = img.src;
+      return new Promise(resolve=>{
+        original.onload = ()=>{
+          ctx.drawImage(original, sx, sy, sw, sh, 0, 0, sw, sh);
+          resolve(cvs);
+        };
+        original.onerror = ()=> resolve(null);
+      });
+    }
+
+    // 버튼: 전체 인식 / 선택 인식 / 선택 초기화
+    document.getElementById('btn-ocr-all').addEventListener('click', ()=>{
+      if(!imgFile) return alert('먼저 사진을 선택해 주세요.');
+      runOCR(imgFile);
+    });
+    document.getElementById('btn-ocr-crop').addEventListener('click', async ()=>{
+      if(!imgLoaded) return alert('먼저 사진을 선택해 주세요.');
+      const cvs = await cropToCanvas();
+      if(!cvs) return;
+      runOCR(cvs);
+    });
+    document.getElementById('btn-ocr-clear').addEventListener('click', resetCrop);
+
+    // “채우고 풀이로 이동”
     function onFill(choice, sourceId){
-      const type = choice==='auto' ? autoDetect($('#ocr-text').value) : choice;
-      const txt  = sourceId==='ocr' ? $('#ocr-text').value : $('#qi-text').value;
+      const type = choice==='auto' ? autoDetect(document.getElementById('ocr-text').value) : choice;
+      const txt  = sourceId==='ocr' ? document.getElementById('ocr-text').value : document.getElementById('qi-text').value;
       let v=null;
       if(type==='linear'){
         v=parseLinear(txt); if(!v) return alert('1차 예: 2x+3=11');
@@ -550,39 +721,6 @@
       }
       window.scrollTo({top:document.querySelector('#'+type).offsetTop-10, behavior:'smooth'});
     }
-
-    // OCR 처리
-    const fileInput = document.getElementById('img-file');
-    const bar = document.getElementById('ocr-bar');
-    fileInput.addEventListener('change', async (e)=>{
-      const f = e.target.files && e.target.files[0];
-      if(!f) return;
-      bar.style.width='0%';
-      try{
-        const { data } = await Tesseract.recognize(f, 'eng', {
-          logger: m => {
-            if(m.status==='recognizing text' && m.progress!=null){
-              bar.style.width = Math.round(m.progress*100)+'%';
-            }
-          }
-        });
-        // 텍스트 정리(불필요한 줄바꿈/공백 제거, 유니코드 기호 보정)
-        let t = (data.text || '').trim()
-          .replace(/\r/g,'')
-          .replace(/[·×]/g,'*')
-          .replace(/[＝=]/g,'=')
-          .replace(/[−–—]/g,'-')
-          .replace(/[^\dxxyy=\+\-\*\/\^\.\,\n]/gi,''); // 수식에 불필요한 문자 제거
-        t = t.split('\n').map(s=>s.trim()).filter(Boolean).join(', ');
-        document.getElementById('ocr-text').value = t || '';
-      }catch(err){
-        alert('OCR 중 오류가 발생했습니다. 사진을 다시 촬영해 주세요.');
-        console.error(err);
-      }finally{
-        setTimeout(()=> bar.style.width='0%', 700);
-      }
-    });
-
     document.getElementById('qi-fill').addEventListener('click', ()=>{
       const sel = document.getElementById('qi-type').value; onFill(sel, 'ocr');
     });
@@ -590,7 +728,7 @@
       const sel = document.getElementById('qi-type2').value; onFill(sel, 'text');
     });
   })();
-  // ===== /자동 파서 & OCR =====
+  // ===== /텍스트 자동 파서 + OCR + 크롭 =====
 </script>
 
 <!-- 서비스워커 등록: body 끝에 두세요 -->
