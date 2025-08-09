@@ -1,46 +1,44 @@
 <!doctype html>
 <html lang="ko">
-<meta charset="utf-8"><script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/math-coach/service-worker.js').catch(console.error);
-    });
-  }
-</script><link rel="manifest" href="/math-coach/manifest.json">
-<meta name="theme-color" content="#0f1220"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>수학 풀이 코칭 v0.1</title>
-<style>
-  :root { --bg:#0f1220; --card:#171a2b; --accent:#6ea8fe; --text:#e9edf5; --muted:#9aa3b2; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; }
-  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Apple SD Gothic Neo,Malgun Gothic,sans-serif}
-  body{margin:0;background:var(--bg);color:var(--text)}
-  header{padding:16px 20px;border-bottom:1px solid #23263a}
-  header h1{margin:0;font-size:20px}
-  header p{margin:6px 0 0;color:var(--muted);font-size:13px}
-  .container{max-width:920px;margin:0 auto;padding:16px}
-  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .tab{flex:1;min-width:180px;background:var(--card);border:1px solid #23263a;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:center;color:var(--muted)}
-  .tab.active{outline:2px solid var(--accent);color:var(--text)}
-  .card{background:var(--card);border:1px solid #23263a;border-radius:12px;padding:16px;margin-bottom:14px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .col{flex:1;min-width:220px}
-  label{display:block;margin:8px 0 4px;color:#c7cede;font-size:13px}
-  input{width:100%;padding:10px;border-radius:8px;border:1px solid #2a2e44;background:#121428;color:var(--text)}
-  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  button{padding:10px 12px;border:1px solid #2a2e44;background:#121428;color:var(--text);border-radius:8px;cursor:pointer}
-  button.primary{background:var(--accent);border-color:var(--accent);color:#0b1020}
-  .hint{background:#101325;border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;margin:8px 0}
-  .muted{color:var(--muted);font-size:13px}
-  .ok{color:var(--ok);font-weight:600}
-  .bad{color:var(--bad);font-weight:600}
-  .warn{color:var(--warn);font-weight:600}
-  .steps ol{margin:10px 0 0 18px}
-  .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #2a2e44;background:#0f1220;color:#cfd6ea}
-  footer{padding:16px 20px;color:var(--muted);font-size:12px;border-top:1px solid #23263a}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media(max-width:800px){.grid{grid-template-columns:1fr}}
-</style>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>수학 풀이 코칭 v0.1</title>
+
+  <!-- PWA 연결: GitHub Pages 하위 경로(/math-coach/) 기준 -->
+  <link rel="manifest" href="/math-coach/manifest.json">
+  <meta name="theme-color" content="#0f1220">
+
+  <style>
+    :root { --bg:#0f1220; --card:#171a2b; --accent:#6ea8fe; --text:#e9edf5; --muted:#9aa3b2; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; }
+    *{box-sizing:border-box;font-family:system-ui,Segoe UI,Apple SD Gothic Neo,Malgun Gothic,sans-serif}
+    body{margin:0;background:var(--bg);color:var(--text)}
+    header{padding:16px 20px;border-bottom:1px solid #23263a}
+    header h1{margin:0;font-size:20px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .container{max-width:920px;margin:0 auto;padding:16px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .tab{flex:1;min-width:180px;background:var(--card);border:1px solid #23263a;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:center;color:var(--muted)}
+    .tab.active{outline:2px solid var(--accent);color:var(--text)}
+    .card{background:var(--card);border:1px solid #23263a;border-radius:12px;padding:16px;margin-bottom:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .col{flex:1;min-width:220px}
+    label{display:block;margin:8px 0 4px;color:#c7cede;font-size:13px}
+    input{width:100%;padding:10px;border-radius:8px;border:1px solid #2a2e44;background:#121428;color:var(--text)}
+    .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{padding:10px 12px;border:1px solid #2a2e44;background:#121428;color:var(--text);border-radius:8px;cursor:pointer}
+    button.primary{background:var(--accent);border-color:var(--accent);color:#0b1020}
+    .hint{background:#101325;border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;margin:8px 0}
+    .muted{color:var(--muted);font-size:13px}
+    .ok{color:var(--ok);font-weight:600}
+    .bad{color:var(--bad);font-weight:600}
+    .warn{color:var(--warn);font-weight:600}
+    .steps ol{margin:10px 0 0 18px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #2a2e44;background:#0f1220;color:#cfd6ea}
+    footer{padding:16px 20px;color:var(--muted);font-size:12px;border-top:1px solid #23263a}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
 <header>
@@ -176,7 +174,7 @@
   };
 
   // 상태(힌트 잠금)
-  const gate = {
+  let gate = {
     lin: {s1:false,s2:false,ans:false},
     quad:{s1:false,s2:false,ans:false},
     sys: {s1:false,s2:false,ans:false}
@@ -294,11 +292,9 @@
     let html = '<div class="hint"><strong>정답:</strong> ';
     if(D>=0){
       const sqrtD = Math.sqrt(D);
-      // 정확식
       const exact = isPerfectSquare(D)
         ? `x = (${ -b } ± ${ sqrtD }) / ${2*a}`
         : `x = (${ -b } ± √${D}) / ${2*a}`;
-      // 근값
       let approx = '';
       if(a!==0){
         const x1 = (-b + Math.sqrt(Math.abs(D))) / (2*a);
@@ -307,7 +303,6 @@
       }
       html += `${exact}${approx}</div>`;
     }else{
-      const sqrtAbs = Math.sqrt(-D);
       html += `x = (${ -b } ± i·√${-D}) / ${2*a}</div>`;
       html += `<div class="hint">허근 형태(복소수). a≠0, D<0이므로 실수해는 없습니다.</div>`;
     }
@@ -388,10 +383,8 @@
     const Δy = a1*c2 - c1*a2;
     const xStr = simpFrac(Δx, Δ);
     const yStr = simpFrac(Δy, Δ);
-    let approx = '';
     const x=Δx/Δ, y=Δy/Δ;
-    approx = ` (x≈${x.toFixed(6)}, y≈${y.toFixed(6)})`;
-    sysResult.innerHTML = `<div class="hint"><strong>정답:</strong> x = ${xStr}, y = ${yStr}${approx}</div>
+    sysResult.innerHTML = `<div class="hint"><strong>정답:</strong> x = ${xStr}, y = ${yStr} (x≈${x.toFixed(6)}, y≈${y.toFixed(6)})</div>
       <div class="hint">Cramer: x=Δx/Δ, y=Δy/Δ where Δ=${Δ}, Δx=${Δx}, Δy=${Δy}</div>`;
     gate.sys.ans=true;
   };
@@ -413,6 +406,14 @@
     sysResult.innerHTML += `<div class="hint">${(ok1&&ok2)?'<span class="ok">검산 통과</span>':'<span class="bad">검산 실패</span>'} — 식1: ${ (a1*x + b1*y).toFixed(6)} vs ${c1}, 식2: ${(a2*x + b2*y).toFixed(6)} vs ${c2}</div>`;
   };
 </script>
-</body>
 
+<!-- 서비스워커 등록: body 끝에 두세요 -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/math-coach/service-worker.js').catch(console.error);
+    });
+  }
+</script>
+</body>
 </html>
