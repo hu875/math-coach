@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>수학 코칭 v1.5 (Fast+Stable)</title>
+  <title>수학 코칭 v1.6 (Auto-Rotate)</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/math-coach/manifest.json">
@@ -44,6 +44,7 @@
     .divider{height:1px;background:var(--line);margin:12px 0}
     .tag{display:inline-block;border:1px solid var(--line);background:#f9fafb;border-radius:999px;padding:4px 8px;font-size:12px;color:#374151;margin-right:6px}
 
+    /* 미리보기 + 크롭 */
     #preview-wrap{position:relative;border:1px dashed var(--line);border-radius:16px;padding:10px;background:#fff;min-height:260px}
     #img-preview{max-width:100%;display:none;border-radius:12px;touch-action:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:relative}
     #crop-box{position:absolute;border:2px solid var(--accent);background:rgba(37,99,235,.06);display:none;touch-action:none}
@@ -59,7 +60,7 @@
     <img src="/math-coach/mascot.png" alt="마스코트" onerror="this.style.display='none'">
     <div>
       <h1>수학 코칭</h1>
-      <p>사진 올리기 → “문제만” 네모로 맞추고 → 빠르게 풀기(문제집식 해설)</p>
+      <p>사진 올리기 → “문제만” 네모로 맞추고 → 자동 회전 → 빠르게 풀이</p>
     </div>
   </div>
 </header>
@@ -80,7 +81,7 @@
         </div>
 
         <div class="btns" style="margin-top:10px">
-          <button id="btn-rotate">↻ 90°</button>
+          <!-- 회전 버튼 제거됨 -->
           <button id="btn-lock">🔒 잠금</button>
           <button id="btn-blue">🔵 파란글씨: ON</button>
           <button id="btn-solve" class="primary">빠르게 풀기</button>
@@ -138,16 +139,15 @@
   const tagOCR = document.getElementById('tag-ocr');
   const bar = document.getElementById('ocr-bar');
 
-  let imgLoaded=false, imgW=0, imgH=0, ROT=0, LOCKED=false, BLUE=true;
+  let imgLoaded=false, imgW=0, imgH=0, LOCKED=false, BLUE=true;
   let rect = {x:0,y:0,w:0,h:0}, drag={mode:'none',dir:null,offsetX:0,offsetY:0};
 
-  // 크롭 박스
-  function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
+  const clamp=(v,min,max)=> Math.max(min, Math.min(max,v));
   function showRect(r){ crop.style.display='block'; crop.style.left=r.x+'px'; crop.style.top=r.y+'px'; crop.style.width=r.w+'px'; crop.style.height=r.h+'px'; }
-  function initRect(){ const W=imgEl.clientWidth,H=imgEl.clientHeight; const w=Math.round(W*0.84), h=Math.round(H*0.4); rect={x:Math.round((W-w)/2),y:Math.round((H-h)/2),w,h}; showRect(rect); }
+  function initRect(){ const W=imgEl.clientWidth,H=imgEl.clientHeight; const w=Math.round(W*0.84),h=Math.round(H*0.4); rect={x:Math.round((W-w)/2),y:Math.round((H-h)/2),w,h}; showRect(rect); }
+  function rel(e){ const r=imgEl.getBoundingClientRect(); return { x: clamp(e.clientX-r.left,0,imgEl.clientWidth), y: clamp(e.clientY-r.top,0,imgEl.clientHeight) }; }
+  function hitHandle(px,py){ const hs=crop.querySelectorAll('.handle'); for(const h of hs){ const b=h.getBoundingClientRect(); if(px>=b.left&&px<=b.right&&py>=b.top&&py<=b.bottom) return h.dataset.dir; } return null; }
 
-  crop.addEventListener('pointerdown', e=>e.preventDefault());
-  document.getElementById('btn-rotate').onclick=()=>{ ROT=(ROT+90)%360; document.getElementById('btn-rotate').textContent='↻ '+ROT+'°'; };
   document.getElementById('btn-lock').onclick=()=>{ LOCKED=!LOCKED; document.getElementById('tag-lock').textContent='잠금: '+(LOCKED?'ON':'해제'); document.getElementById('btn-lock').textContent=LOCKED?'🔓 잠금 해제':'🔒 잠금'; };
   document.getElementById('btn-blue').onclick=()=>{ BLUE=!BLUE; document.getElementById('btn-blue').textContent = BLUE?'🔵 파란글씨: ON':'⚪ 파란글씨: OFF'; };
 
@@ -180,9 +180,6 @@
   });
   window.addEventListener('pointerup', e=>{ drag.mode='none'; drag.dir=null; try{wrap.releasePointerCapture?.(e.pointerId);}catch(_){}});
 
-  function hitHandle(px,py){ const hs=crop.querySelectorAll('.handle'); for(const h of hs){ const b=h.getBoundingClientRect(); if(px>=b.left&&px<=b.right&&py>=b.top&&py<=b.bottom) return h.dataset.dir; } return null; }
-  function rel(e){ const r=imgEl.getBoundingClientRect(); return { x: clamp(e.clientX-r.left,0,imgEl.clientWidth), y: clamp(e.clientY-r.top,0,imgEl.clientHeight) }; }
-
   // 파일 로드
   fileInput.addEventListener('change', e=>{
     const f=e.target.files&&e.target.files[0]; resetOutputs();
@@ -191,10 +188,11 @@
     imgEl.onload=()=>{ imgW=imgEl.naturalWidth; imgH=imgEl.naturalHeight; imgLoaded=true; imgEl.style.display='block'; if(!LOCKED) initRect(); };
     imgEl.src=url;
   });
-
   function resetOutputs(){ recognized.textContent=''; document.getElementById('tag-type').textContent='유형: -'; tagOCR.textContent='읽기: 대기'; document.getElementById('cands').style.display='none'; document.getElementById('cand-wrap').innerHTML=''; document.getElementById('result').style.display='none'; }
+</script>
 
-  // 캔버스 유틸
+<script>
+  // --------- 전처리/자동 회전/인식/풀이 ---------
   function cropToCanvas(){
     if(!imgLoaded || rect.w<24 || rect.h<24){ alert('네모를 더 크게 맞춰 주세요.'); return null; }
     const padX=Math.round(rect.w*0.06), padY=Math.round(rect.h*0.04);
@@ -204,16 +202,32 @@
     const sx=(imgEl.naturalWidth||imgW)/imgEl.clientWidth, sy=(imgEl.naturalHeight||imgH)/imgEl.clientHeight;
     const x=Math.round(rx*sx), y=Math.round(ry*sy), w=Math.round(rw*sx), h=Math.round(rh*sy);
 
-    // 세로로 길면 자동 가로화 힌트
-    let base=document.createElement('canvas');
-    const scale = 2.2;
-    base.width=Math.round(w*scale); base.height=Math.round(h*scale);
-    const g=base.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high';
-    g.drawImage(imgEl, x,y,w,h, 0,0,base.width,base.height);
-    // 사용자 회전 적용
-    return rotateCanvas(base, ROT);
+    const c=document.createElement('canvas'); const scale=2.2;
+    c.width=Math.round(w*scale); c.height=Math.round(h*scale);
+    const g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high'; g.drawImage(imgEl, x,y,w,h, 0,0,c.width,c.height);
+    return c;
   }
 
+  // 자동 회전(0/±90 중 선택): 에지→허프→세로 라인 많으면 -90, 가로 라인 많으면 0, 모호하면 +90 보조
+  function autoOrientCanvas(cnv){
+    try{
+      if(typeof cv==='undefined') return cnv;
+      const src=cv.imread(cnv), gray=new cv.Mat(), edges=new cv.Mat();
+      cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY); cv.Canny(gray, edges, 60, 140, 3, false);
+      const lines=new cv.Mat(); cv.HoughLinesP(edges, lines, 1, Math.PI/180, 80, 40, 8);
+      let hCnt=0, vCnt=0;
+      for(let i=0;i<lines.rows;i++){
+        const p=lines.intPtr(i); const ang=Math.abs(Math.atan2(p[3]-p[1], p[2]-p[0])*(180/Math.PI));
+        const a = ang>90? 180-ang: ang;
+        if(a<=15) hCnt++;           // 0°±15° → 가로
+        else if(Math.abs(a-90)<=15) vCnt++; // 90°±15° → 세로
+      }
+      src.delete(); gray.delete(); edges.delete(); lines.delete();
+      if(vCnt > hCnt*1.2) return rotateCanvas(cnv,-90);  // 세로가 확실히 많으면 -90
+      if(hCnt >= vCnt) return cnv;                        // 가로가 같거나 많으면 그대로
+      return rotateCanvas(cnv,90);                        // 모호할 땐 +90 보조
+    }catch(e){ return cnv; }
+  }
   function rotateCanvas(cnv, deg){
     if(deg===0) return cnv;
     const r=document.createElement('canvas'), rad=deg*Math.PI/180;
@@ -222,12 +236,11 @@
     return r;
   }
 
-  // 전처리(파란글씨/흑백)
+  // 파란글씨/흑백 전처리
   function preprocessBlue(cnv){
     try{
       if(typeof cv==='undefined') return cnv;
-      const rgb=cv.imread(cnv);
-      let hsv=new cv.Mat(); cv.cvtColor(rgb,hsv,cv.COLOR_RGBA2RGB); cv.cvtColor(hsv,hsv,cv.COLOR_RGB2HSV);
+      const rgb=cv.imread(cnv); let hsv=new cv.Mat(); cv.cvtColor(rgb,hsv,cv.COLOR_RGBA2RGB); cv.cvtColor(hsv,hsv,cv.COLOR_RGB2HSV);
       const low=new cv.Mat(hsv.rows,hsv.cols,hsv.type(),[90,50,30,0]);
       const high=new cv.Mat(hsv.rows,hsv.cols,hsv.type(),[135,255,255,255]);
       let mask=new cv.Mat(); cv.inRange(hsv,low,high,mask);
@@ -241,31 +254,28 @@
     try{
       if(typeof cv==='undefined') return cnv;
       let src=cv.imread(cnv), gray=new cv.Mat(), den=new cv.Mat(), th=new cv.Mat();
-      cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
-      cv.GaussianBlur(gray,den,new cv.Size(3,3),0);
-      cv.threshold(den,th,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
+      cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY); cv.GaussianBlur(gray,den,new cv.Size(3,3),0); cv.threshold(den,th,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
       const out=document.createElement('canvas'); out.width=th.cols; out.height=th.rows; cv.imshow(out,th);
-      src.delete(); gray.delete(); den.delete(); th.delete();
-      return out;
+      src.delete(); gray.delete(); den.delete(); th.delete(); return out;
     }catch(e){ return cnv; }
   }
 
-  // 후보 표시
+  // 후보 UI
   function showCandidates(list){
     const box=document.getElementById('cands'), wrap=document.getElementById('cand-wrap');
     wrap.innerHTML='';
     if(!list||list.length===0){ box.style.display='none'; return; }
     list.slice(0,2).forEach(t=>{
       const b=document.createElement('button');
-      b.textContent = t.length>30 ? (t.slice(0,30)+'…') : t;
-      b.style.padding='8px 10px'; b.style.border='1px solid #e5e7eb'; b.style.borderRadius='10px'; b.style.background='#fff'; b.style.cursor='pointer';
+      b.textContent = t.length>30?(t.slice(0,30)+'…'):t;
+      b.style.padding='8px 10px'; b.style.border='1px solid #e5e7eb'; b.style.borderRadius='10px'; b.style.background='#fff';
       b.onclick=()=>{ recognized.textContent=t; box.style.display='none'; solveFromText(t); };
       wrap.appendChild(b);
     });
     box.style.display='block';
   }
 
-  // Tesseract 워커(1회 로드 → 재사용)
+  // Tesseract 워커(1회 로드 후 재사용)
   let worker=null, workerLang='eng';
   async function ensureWorker(lang='eng'){
     if(worker && workerLang===lang) return worker;
@@ -282,48 +292,24 @@
     return worker;
   }
 
-  // 빠른 경로(eng+PSM7) → 실패 시 보조(파란글씨/eng+kor)
-  async function ocrFast(cnv){
-    tagOCR.textContent='읽기: 진행중';
-    const w = await ensureWorker('eng');
-    const { data } = await w.recognize(cnv);
-    const r = postClean(data.text||'', data.confidence||0, 'eng');
-    return r.clean;
-  }
-  async function ocrDeep(cnv){
-    const outs=[];
-    // 1) 파란글씨 모드
-    const b = BLUE ? preprocessBlue(cnv) : preprocessGray(cnv);
-    const w1 = await ensureWorker('eng');
-    const d1 = await w1.recognize(b); outs.push(postClean(d1.data.text||'', d1.data.confidence||0, 'eng'));
-    // 2) eng+kor 보조(한글 섞임 방어)
-    const w2 = await ensureWorker('eng+kor');
-    const d2 = await w2.recognize(b); outs.push(postClean(d2.data.text||'', d2.data.confidence||0, 'eng+kor'));
-    outs.sort((a,b)=> b.score-a.score);
-    return outs[0]?.clean || '';
-  }
-
   function postClean(s, conf, lang){
-    let t=(s||'')
-      .replace(/\r/g,'')
-      .replace(/[·×]/g,'*')
-      .replace(/[＝=]/g,'=')
-      .replace(/[−–—]/g,'-')
-      .replace(/Ｏ/g,'0')
-      .replace(/(?<=\d)[lI](?=\d)/g,'1');
+    let t=(s||'').replace(/\r/g,'').replace(/[·×]/g,'*').replace(/[＝=]/g,'=').replace(/[−–—]/g,'-').replace(/Ｏ/g,'0').replace(/(?<=\d)[lI](?=\d)/g,'1');
     const mathOnly = t.replace(/[^0-9a-zA-Z가-힣\s\(\)\+\-\*\/=<>&\^\,\.\u2264\u2265<>|]/g,'');
     const hasKor = /[가-힣]/.test(mathOnly);
     const langPenalty = (lang==='eng' && hasKor)? -10 : 0;
-    const bonus =
-      (/\|x\|/.test(mathOnly)?10:0) +
-      (/(=|≤|≥|<|>)/.test(mathOnly)?6:0) +
-      (/(x|y)/i.test(mathOnly)?4:0) +
-      (/x\^?2/.test(mathOnly)?4:0);
+    const bonus = (/\|x\|/.test(mathOnly)?10:0) + (/(=|≤|≥|<|>)/.test(mathOnly)?6:0) + (/(x|y)/i.test(mathOnly)?4:0) + (/x\^?2/.test(mathOnly)?4:0);
     return { clean:(mathOnly.trim()||t.trim()), score:(conf||0)+bonus+langPenalty };
   }
 
-  // 분류/풀이(절댓값 이차 포함)
-  const resBox=document.getElementById('result'), stepsOl=document.getElementById('steps-ol'), summary=document.getElementById('summary'), verify=document.getElementById('verify');
+  // 빠른 경로 → 보조 경로
+  async function ocrFast(cnv){ tagOCR.textContent='읽기: 진행중(빠른)'; const w=await ensureWorker('eng'); const { data } = await w.recognize(cnv); return postClean(data.text||'', data.confidence||0, 'eng').clean; }
+  async function ocrDeep(cnv){
+    const outs=[]; const w1=await ensureWorker('eng'); const d1=await w1.recognize(cnv); outs.push(postClean(d1.data.text||'',d1.data.confidence||0,'eng'));
+    const w2=await ensureWorker('eng+kor'); const d2=await w2.recognize(cnv); outs.push(postClean(d2.data.text||'',d2.data.confidence||0,'eng+kor'));
+    outs.sort((a,b)=> b.score-a.score); return outs[0]?.clean || '';
+  }
+
+  // 분류/풀이
   function cleanText(s){ return s.toLowerCase().replace(/\s+/g,' ').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/[Ⅰl]/g,'1').replace(/Ｏ/g,'0').trim(); }
   function detectType(t){
     const s=cleanText(t);
@@ -337,40 +323,29 @@
   }
   const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
   const frac=(n,d)=>{ if(d===0) return '정의X'; if(n===0) return '0'; const g=gcd(n,d); n/=g; d/=g; if(d<0){d*=-1;n*=-1} return d===1?`${n}`:`${n}/${d}`; };
-
-  function renderResult(sum, steps, ver){ resBox.style.display='block'; summary.textContent=sum; stepsOl.innerHTML=''; steps.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; stepsOl.appendChild(li); }); verify.innerHTML = ver.includes('통과')?`<span class="ok">${ver}</span>`:(ver==='-'?'-':`<span class="warn">${ver}</span>`); window.scrollTo({top:resBox.offsetTop-10,behavior:'smooth'}); }
+  function renderResult(sum, steps, ver){ document.getElementById('result').style.display='block'; document.getElementById('summary').textContent=sum; const ol=document.getElementById('steps-ol'); ol.innerHTML=''; steps.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; ol.appendChild(li); }); document.getElementById('verify').innerHTML= ver.includes('통과')?`<span class="ok">${ver}</span>`:(ver==='-'?'-':`<span class="warn">${ver}</span>`); window.scrollTo({top:document.getElementById('result').offsetTop-10,behavior:'smooth'}); }
 
   function parseAbsQuad(s){
-    const z=s.toLowerCase().replace(/x²/g,'x^2').replace(/\s+/g,'');
-    const m=z.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)\|x\|([+\-]\d+\.?\d*)=0$/);
-    if(!m) return null;
-    const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1]));
-    const B=(m[2]===''||m[2]==='+')?1:(m[2]==='-'?-1:parseFloat(m[2]));
-    const C=parseFloat(m[3]);
-    return {A,B,C};
+    const z=s.toLowerCase().replace(/x²/g,'x^2').replace(/\s+/g,''); const m=z.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)\|x\|([+\-]\d+\.?\d*)=0$/);
+    if(!m) return null; const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])); const B=(m[2]===''||m[2]==='+')?1:(m[2]==='-'?-1:parseFloat(m[2])); const C=parseFloat(m[3]); return {A,B,C};
   }
   function solveAbsQuadEQ(eq){
-    const {A,B,C}=eq, steps=[];
-    steps.push(`y = |x| (y≥0)로 두면, ${A}y² ${B>=0?'+':''}${B}y ${C>=0?'+':''}${C} = 0`);
-    const D=B*B-4*A*C; steps.push(`판별식 D = B² - 4AC = ${D}`);
-    if(D<0) return renderResult('실수 해 없음', steps, '-');
+    const {A,B,C}=eq, steps=[]; steps.push(`y = |x| (y≥0)로 두면, ${A}y² ${B>=0?'+':''}${B}y ${C>=0?'+':''}${C} = 0`);
+    const D=B*B-4*A*C; steps.push(`판별식 D = B² - 4AC = ${D}`); if(D<0) return renderResult('실수 해 없음', steps, '-');
     const sD=Math.sqrt(D), y1=(-B+sD)/(2*A), y2=(-B-sD)/(2*A); steps.push(`y = (-B ± √D)/(2A) ⇒ y ≈ ${y1.toFixed(6)}, ${y2.toFixed(6)} (y≥0만 유효)`);
     const ys=[y1,y2].filter(y=>y>=0); if(ys.length===0) return renderResult('유효한 y(=|x|) 없음', steps, '-');
-    const xs=[]; ys.forEach(y=>{ xs.push(y); if(y!==0) xs.push(-y); });
-    steps.push(`|x| = y 이므로 x = ±y`);
+    const xs=[]; ys.forEach(y=>{ xs.push(y); if(y!==0) xs.push(-y); }); steps.push(`|x| = y 이므로 x = ±y`);
     renderResult(`정답: x = ${xs.map(v=>Number.isInteger(v)?v:v.toFixed(6)).join(', ')}`, steps, '검산 통과');
   }
-
-  function solveLinear(t){ const m=t.match(/([+\-]?\d*\.?\d*)x(?:\s*([+\-]\s*\d+\.?\d*))?\s*=\s*([+\-]?\d+\.?\d*)/i); if(!m){ alert('1차 방정식을 더 또렷하게 찍어 주세요.'); return; } const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2].replace(/\s+/g,'')):0, C=parseFloat(m[3]); const num=C-B, den=A, x=num/den; renderResult(`정답: x = ${frac(num,den)}${Number.isFinite(x)&&!Number.isInteger(x)?` (≈ ${x.toFixed(6)})`:''}`, [`상수항을 반대로 옮깁니다.`, `x의 계수(${A})로 나눕니다.`, `따라서 x = (${C} - ${B}) / ${A}`], Math.abs(A*x+B-C)<1e-9?'검산 통과':'검산 실패'); }
-  function solveQuadratic(t){ const s2=t.replace(/x²/g,'x^2').replace(/\s+/g,''), q=s2.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/); if(!q){ alert('이차 방정식은 =0 형태가 좋아요.'); return; } const A=(q[1]===''||q[1]==='+')?1:(q[1]==='-'?-1:parseFloat(q[1])), B=(q[2]===''||q[2]==='+')?1:(q[2]==='-'?-1:parseFloat(q[2])), C=parseFloat(q[3]); const D=B*B-4*A*C; if(D>=0){ const sD=Math.sqrt(D), x1=(-B+sD)/(2*A), x2=(-B-sD)/(2*A), f=x=>A*x*x+B*x+C; renderResult(`정답: x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`, [`표준형 ${A}x² ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C} = 0`, `D=b²-4ac=${D}`, `근의 공식 x = (-b ± √D)/(2a)`], (Math.abs(f(x1))<1e-6&&Math.abs(f(x2))<1e-6)?'검산 통과':'검산 확인 필요'); } else { renderResult('정답(복소수): x = (−b ± i√|D|)/(2a)', ['D<0 → 실수해 없음'], '실수 범위 검산 해당 없음'); } }
-  function solveSystem(t){ const parts=t.split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d*\.?\d*)y\s*=\s*([+\-]?\d+\.?\d*)/; if(parts.length<2){ alert('연립 두 식을 쉼표로 구분해 주세요.'); return; } const m1=parts[0].match(re), m2=parts[1].match(re); if(!m1||!m2){ alert('연립 해석이 어려워요. 박스를 더 정확히 맞춰 주세요.'); return; } const n=v=>(v===''||v==='+')?1:(v==='-'?-1:parseFloat(v)); const a1=n(m1[1]), b1=n((m1[2]||'').replace(/\s+/g,'')), c1=parseFloat(m1[3]); const a2=n(m2[1]), b2=n((m2[2]||'').replace(/\s+/g,'')), c2=parseFloat(m2[3]); const D=a1*b2-b1*a2; if(D===0){ renderResult('유일해 없음(특수 케이스)', ['Δ=0 → 유일해가 존재하지 않습니다.'], '-'); return; } const Dx=c1*b2-b1*c2, Dy=a1*c2-c1*a2; const x=Dx/D, y=Dy/D; renderResult(`정답: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`, ['Cramer 공식 사용'], (Math.abs(a1*x+b1*y-c1)<1e-9 && Math.abs(a2*x+b2*y-c2)<1e-9)?'검산 통과':'검산 실패'); }
-  function solveIneq(t){ const m=t.replace(/\s+/g,'').match(/^([+\-]?\d*\.?\d*)x(?:([+\-]\d+\.?\d*))?(>=|<=|>|<)([+\-]?\d+\.?\d*)$/); if(!m){ alert('부등식 기호(>,<,≥,≤)를 또렷이 찍어 주세요.'); return; } const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2]):0, op=m[3], C=parseFloat(m[4]); const flip=A<0, op2= flip?({'>':'<','<':'>','>=':'<=','<=':'>='}[op]):op, ans=`x ${op2} ${frac(C-B,A)}`; renderResult(`정답: ${ans}`, ['상수항 정리', `양변을 ${A}로 나눔( ${A<0?'부등호 반전':'그대로'} )`], '-'); }
-  function solveFunc(t){ const eqs=t.toLowerCase().split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/y\s*=\s*([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)?/; if(eqs.length<2){ alert('함수 교점은 y=… 두 개를 쉼표로!'); return; } const m1=eqs[0].match(re), m2=eqs[1].match(re); if(!m1||!m2){ alert('함수 식을 또렷하게 찍어 주세요.'); return; } const Cc=m=>({k:(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), n:m[2]?parseFloat(m[2].replace(/\s+/g,'')):0}); const f1=Cc(m1), f2=Cc(m2); if(f1.k===f2.k){ renderResult(f1.n===f2.n?'무수히 많은 해(같은 직선)':'해 없음(평행)', ['기울기 동일 판단'], '-'); return; } const x=(f2.n-f1.n)/(f1.k-f2.k), y=f1.k*x+f1.n; renderResult(`교점: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`, ['두 y를 같게 두고 정리', 'x,y 계산'], '검산 통과'); }
+  function solveLinear(t){ const m=t.match(/([+\-]?\d*\.?\d*)x(?:\s*([+\-]\s*\d+\.?\d*))?\s*=\s*([+\-]?\d+\.?\d*)/i); if(!m){ alert('1차 방정식을 더 또렷하게 찍어 주세요.'); return; } const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2].replace(/\s+/g,'')):0, C=parseFloat(m[3]); const num=C-B, den=A, x=num/den; renderResult(`정답: x = ${frac(num,den)}${Number.isFinite(x)&&!Number.isInteger(x)?` (≈ ${x.toFixed(6)})`:''}`, ['상수항 정리','계수로 나눔','정답 제시'], Math.abs(A*x+B-C)<1e-9?'검산 통과':'검산 실패'); }
+  function solveQuadratic(t){ const s2=t.replace(/x²/g,'x^2').replace(/\s+/g,''), q=s2.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/); if(!q){ alert('이차 방정식은 =0 형태가 좋아요.'); return; } const A=(q[1]===''||q[1]==='+')?1:(q[1]==='-'?-1:parseFloat(q[1])), B=(q[2]===''||q[2]==='+')?1:(q[2]==='-'?-1:parseFloat(q[2])), C=parseFloat(q[3]); const D=B*B-4*A*C; if(D>=0){ const sD=Math.sqrt(D), x1=(-B+sD)/(2*A), x2=(-B-sD)/(2*A), f=x=>A*x*x+B*x+C; renderResult(`정답: x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`, ['표준형 확인',`D=${D}`,'근의 공식'], (Math.abs(f(x1))<1e-6&&Math.abs(f(x2))<1e-6)?'검산 통과':'검산 확인 필요'); } else { renderResult('정답(복소수): x = (−b ± i√|D|)/(2a)', ['D<0 → 실수해 없음'],'실수 범위 검산 해당 없음'); } }
+  function solveSystem(t){ const parts=t.split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d*\.?\d*)y\s*=\s*([+\-]?\d+\.?\d*)/; if(parts.length<2){ alert('연립 두 식을 쉼표로 구분해 주세요.'); return; } const m1=parts[0].match(re), m2=parts[1].match(re); if(!m1||!m2){ alert('연립 해석이 어려워요. 박스를 더 정확히 맞춰 주세요.'); return; } const n=v=>(v===''||v==='+')?1:(v==='-'?-1:parseFloat(v)); const a1=n(m1[1]), b1=n((m1[2]||'').replace(/\s+/g,'')), c1=parseFloat(m1[3]); const a2=n(m2[1]), b2=n((m2[2]||'').replace(/\s+/g,'')), c2=parseFloat(m2[3]); const D=a1*b2-b1*a2; if(D===0){ renderResult('유일해 없음(특수 케이스)',['Δ=0'],'-'); return; } const Dx=c1*b2-b1*c2, Dy=a1*c2-c1*a2; const x=Dx/D, y=Dy/D; renderResult(`정답: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`,['Cramer 공식'], (Math.abs(a1*x+b1*y-c1)<1e-9 && Math.abs(a2*x+b2*y-c2)<1e-9)?'검산 통과':'검산 실패'); }
+  function solveIneq(t){ const m=t.replace(/\s+/g,'').match(/^([+\-]?\d*\.?\d*)x(?:([+\-]\d+\.?\d*))?(>=|<=|>|<)([+\-]?\d+\.?\d*)$/); if(!m){ alert('부등식 기호(>,<,≥,≤)를 또렷이 찍어 주세요.'); return; } const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2]):0, op=m[3], C=parseFloat(m[4]); const flip=A<0, op2= flip?({'>':'<','<':'>','>=':'<=','<=':'>='}[op]):op, ans=`x ${op2} ${frac(C-B,A)}`; renderResult(`정답: ${ans}`,['정리','나누기(부등호 주의)'],'-'); }
+  function solveFunc(t){ const eqs=t.toLowerCase().split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/y\s*=\s*([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)?/; if(eqs.length<2){ alert('함수 교점은 y=… 두 개를 쉼표로!'); return; } const m1=eqs[0].match(re), m2=eqs[1].match(re); if(!m1||!m2){ alert('함수 식을 또렷하게 찍어 주세요.'); return; } const Cc=m=>({k:(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), n:m[2]?parseFloat(m[2].replace(/\s+/g,'')):0}); const f1=Cc(m1), f2=Cc(m2); if(f1.k===f2.k){ renderResult(f1.n===f2.n?'무수히 많은 해(같은 직선)':'해 없음(평행)',['기울기 동일'],'-'); return; } const x=(f2.n-f1.n)/(f1.k-f2.k), y=f1.k*x+f1.n; renderResult(`교점: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`,['두 y를 같게','x,y 계산'],'검산 통과'); }
 
   function solveFromText(t){
     const typ=detectType(t);
     document.getElementById('tag-type').textContent='유형: '+({absquad:'절댓값 이차',linear:'1차',quadratic:'이차',system:'연립',ineq:'부등식',func:'함수 교점',unknown:'알수없음'}[typ]||typ);
-    document.getElementById('result').style.display='none';
     if(typ==='absquad'){ const eq=parseAbsQuad(t); if(!eq){ alert('절댓값 식 해석 실패. 박스를 더 정확히 맞춰 주세요.'); return; } return solveAbsQuadEQ(eq); }
     if(typ==='linear') return solveLinear(t);
     if(typ==='quadratic') return solveQuadratic(t);
@@ -380,35 +355,26 @@
     alert('문제 유형 자동 판단 실패. 박스를 더 타이트/밝게 조정 후 다시 시도해 주세요.');
   }
 
-  // 후보 UI
-  function showCandButtons(arr){
-    const box=document.getElementById('cands'), wrap=document.getElementById('cand-wrap');
-    wrap.innerHTML=''; if(!arr||arr.length===0){ box.style.display='none'; return; }
-    arr.slice(0,2).forEach(t=>{ const b=document.createElement('button'); b.textContent = t.length>30?(t.slice(0,30)+'…'):t; b.style.padding='8px 10px'; b.style.border='1px solid #e5e7eb'; b.style.borderRadius='10px'; b.onclick=()=>{ recognized.textContent=t; box.style.display='none'; solveFromText(t); }; wrap.appendChild(b); });
-    box.style.display='block';
-  }
-
-  // 풀기
+  // 실행
   async function runSolve(){
     if(!imgLoaded){ alert('먼저 사진을 올려 주세요.'); return; }
-    const cnv=cropToCanvas(); if(!cnv) return;
+    // 1) 크롭 → 2) 자동 회전 → 3) 전처리 → 4) 빠른/보조 OCR
+    const cropCnv = cropToCanvas(); if(!cropCnv) return;
+    const oriented = autoOrientCanvas(cropCnv);
+    const pre = BLUE ? preprocessBlue(oriented) : preprocessGray(oriented);
 
-    // 빠른 경로(eng+PSM7)
-    tagOCR.textContent='읽기: 진행중 (빠른 모드)';
-    let text = await ocrFast(cnv);
+    // 빠른 경로
+    let text = await ocrFast(pre);
     recognized.textContent = text || '';
+    // 보조 경로(필요할 때만)
     if(!text || detectType(text)==='unknown'){
-      // 보조 경로(파란글씨/eng+kor 포함)
       tagOCR.textContent='읽기: 보조 모드';
-      const pre = BLUE ? preprocessBlue(cnv) : preprocessGray(cnv);
       text = await ocrDeep(pre);
-      recognized.textContent = text || recognized.textContent;
+      if(text) recognized.textContent = text;
     }
-    tagOCR.textContent = '읽기: 완료';
+    tagOCR.textContent='읽기: 완료'; bar.style.width='0%';
+
     if(!text){ alert('읽은 내용이 없어요. 박스를 더 타이트/밝게 해서 재시도해 주세요.'); return; }
-    // 간단 후보(빠른/보조 결과가 다르면 둘 다 제시)
-    const cands=[]; if(recognized.textContent && recognized.textContent!==text) cands.push(recognized.textContent); cands.push(text);
-    showCandButtons([...new Set(cands)]);
     solveFromText(text);
   }
 
@@ -416,9 +382,6 @@
   document.getElementById('nav-solve').onclick = runSolve;
   document.getElementById('nav-home').onclick = ()=>window.scrollTo({top:0,behavior:'smooth'});
   document.getElementById('nav-album').onclick= ()=>fileInput.click();
-
-  // 헬퍼
-  function hitHandle(px,py){ const hs=crop.querySelectorAll('.handle'); for(const h of hs){ const b=h.getBoundingClientRect(); if(px>=b.left&&px<=b.right&&py>=b.top&&py<=b.bottom) return h.dataset.dir; } return null; }
 </script>
 
 <script>
