@@ -39,3 +39,5 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+'/math-coach/icon-192.png',
+'/math-coach/icon-512.png'
