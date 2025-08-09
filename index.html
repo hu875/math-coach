@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="ko">
-<head>
+<meta charset="utf-8"><script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/math-coach/service-worker.js').catch(console.error);
+    });
+  }
+</script><link rel="manifest" href="/math-coach/manifest.json">
+<meta name="theme-color" content="#0f1220"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>수학 풀이 코칭 v0.1</title>
@@ -407,4 +414,5 @@
   };
 </script>
 </body>
+
 </html>
