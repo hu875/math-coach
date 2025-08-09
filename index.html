@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>수학 풀이 코칭 v0.1</title>
+  <title>수학 풀이 코칭 v0.2</title>
 
   <!-- PWA 연결: GitHub Pages 하위 경로(/math-coach/) 기준 -->
   <link rel="manifest" href="/math-coach/manifest.json">
@@ -24,11 +24,11 @@
     .row{display:flex;gap:10px;flex-wrap:wrap}
     .col{flex:1;min-width:220px}
     label{display:block;margin:8px 0 4px;color:#c7cede;font-size:13px}
-    input{width:100%;padding:10px;border-radius:8px;border:1px solid #2a2e44;background:#121428;color:var(--text)}
+    input, select{width:100%;padding:10px;border-radius:8px;border:1px solid #2a2e44;background:#121428;color:var(--text)}
     .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
     button{padding:10px 12px;border:1px solid #2a2e44;background:#121428;color:var(--text);border-radius:8px;cursor:pointer}
     button.primary{background:var(--accent);border-color:var(--accent);color:#0b1020}
-    .hint{background:#101325;border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;margin:8px 0}
+    .hint{background:#101325;border-left:4px solid #6ea8fe;padding:10px 12px;border-radius:8px;margin:8px 0}
     .muted{color:var(--muted);font-size:13px}
     .ok{color:var(--ok);font-weight:600}
     .bad{color:var(--bad);font-weight:600}
@@ -42,11 +42,35 @@
 </head>
 <body>
 <header>
-  <h1>수학 풀이 코칭 v0.1</h1>
+  <h1>수학 풀이 코칭 v0.2</h1>
   <p>정답이 아니라 “과정”을 배웁니다. 힌트 → 단계 → 검산 순서로 보세요. <span class="badge">학습 보조용</span></p>
 </header>
 
 <div class="container">
+
+  <!-- 빠른 입력(텍스트 자동 파서) -->
+  <section class="card" id="quick-input">
+    <h3>텍스트로 빠르게 입력</h3>
+    <div class="row">
+      <div class="col">
+        <label>유형</label>
+        <select id="qi-type">
+          <option value="linear">1차 방정식</option>
+          <option value="quadratic">이차 방정식(=0 형태)</option>
+          <option value="system">연립방정식(2×2)</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>수식</label>
+        <input id="qi-text" placeholder="예: 2x+3=11 / x^2-5x+6=0 / 2x+y=11, x+y=8">
+      </div>
+    </div>
+    <div class="btns">
+      <button id="qi-fill" class="primary">채우기</button>
+    </div>
+    <p class="muted">띄어쓰기는 자유예요. 이차는 =0 형태로 입력해 주세요. 연립은 쉼표(,)로 두 식을 구분합니다.</p>
+  </section>
+
   <div class="tabs">
     <div class="tab active" data-tab="linear">1차 방정식</div>
     <div class="tab" data-tab="quadratic">이차 방정식</div>
@@ -366,54 +390,4 @@
       li3.textContent = 'Δ≠0 → 유일해가 존재합니다. 다음 단계로 진행합니다.';
     }
     sysOl.appendChild(li3);
-    gate.sys.s2=true; gate.sys.ans=false;
-  };
-
-  document.getElementById('sys-answer').onclick = ()=>{
-    if(!(gate.sys.s1 && gate.sys.s2)){alert('힌트를 모두 본 뒤 정답을 확인할 수 있습니다.');return;}
-    const a1=+document.getElementById('sys-a1').value;
-    const b1=+document.getElementById('sys-b1').value;
-    const c1=+document.getElementById('sys-c1').value;
-    const a2=+document.getElementById('sys-a2').value;
-    const b2=+document.getElementById('sys-b2').value;
-    const c2=+document.getElementById('sys-c2').value;
-    const Δ = a1*b2 - b1*a2;
-    if(Δ===0){ sysResult.innerHTML = '<div class="hint warn">Δ=0 상태 — 유일해 없음(특수 케이스)</div>'; return; }
-    const Δx = c1*b2 - b1*c2;
-    const Δy = a1*c2 - c1*a2;
-    const xStr = simpFrac(Δx, Δ);
-    const yStr = simpFrac(Δy, Δ);
-    const x=Δx/Δ, y=Δy/Δ;
-    sysResult.innerHTML = `<div class="hint"><strong>정답:</strong> x = ${xStr}, y = ${yStr} (x≈${x.toFixed(6)}, y≈${y.toFixed(6)})</div>
-      <div class="hint">Cramer: x=Δx/Δ, y=Δy/Δ where Δ=${Δ}, Δx=${Δx}, Δy=${Δy}</div>`;
-    gate.sys.ans=true;
-  };
-
-  document.getElementById('sys-verify').onclick = ()=>{
-    if(!gate.sys.ans){alert('정답 확인 후 검산하세요.');return;}
-    const a1=+document.getElementById('sys-a1').value;
-    const b1=+document.getElementById('sys-b1').value;
-    const c1=+document.getElementById('sys-c1').value;
-    const a2=+document.getElementById('sys-a2').value;
-    const b2=+document.getElementById('sys-b2').value;
-    const c2=+document.getElementById('sys-c2').value;
-    const Δ = a1*b2 - b1*a2;
-    if(Δ===0){ return; }
-    const x=(c1*b2 - b1*c2)/Δ;
-    const y=(a1*c2 - c1*a2)/Δ;
-    const ok1 = Math.abs(a1*x + b1*y - c1)<1e-9;
-    const ok2 = Math.abs(a2*x + b2*y - c2)<1e-9;
-    sysResult.innerHTML += `<div class="hint">${(ok1&&ok2)?'<span class="ok">검산 통과</span>':'<span class="bad">검산 실패</span>'} — 식1: ${ (a1*x + b1*y).toFixed(6)} vs ${c1}, 식2: ${(a2*x + b2*y).toFixed(6)} vs ${c2}</div>`;
-  };
-</script>
-
-<!-- 서비스워커 등록: body 끝에 두세요 -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/math-coach/service-worker.js').catch(console.error);
-    });
-  }
-</script>
-</body>
-</html>
+    gate.sys.
