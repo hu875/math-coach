@@ -5,8 +5,8 @@
   "start_url": "/math-coach/",
   "scope": "/math-coach/",
   "display": "standalone",
-  "background_color": "#0f1220",
-  "theme_color": "#0f1220",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     { "src": "/math-coach/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/math-coach/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
