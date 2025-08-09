@@ -338,7 +338,7 @@
     if(!imgLoaded || rect.w<24 || rect.h<24){ alert('문제만 보이도록 네모를 더 크게 맞춰 주세요.'); return null; }
     const sx = (img.naturalWidth||imgW)/img.clientWidth, sy = (img.naturalHeight||imgH)/img.clientHeight;
     const x=Math.round(rect.x*sx), y=Math.round(rect.y*sy), w=Math.round(rect.w*sx), h=Math.round(rect.h*sy);
-    const scale = BOOST? 2 : 1.5;
+    const scale = BOOST ? 2.6 : 2.2; // 글자를 더 크게 키워 인식률↑
     const c=document.createElement('canvas'); c.width=Math.round(w*scale); c.height=Math.round(h*scale);
     const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, x,y,w,h, 0,0,c.width,c.height);
@@ -621,3 +621,4 @@
 </script>
 </body>
 </html>
+
