@@ -1,0 +1,10 @@
+{
+  "name": "수학 풀이 코칭",
+  "short_name": "수학코칭",
+  "id": "/math-coach/",
+  "start_url": "/math-coach/",
+  "scope": "/math-coach/",
+  "display": "standalone",
+  "background_color": "#0f1220",
+  "theme_color": "#0f1220"
+}
