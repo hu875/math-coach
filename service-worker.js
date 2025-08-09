@@ -1,10 +1,11 @@
-const CACHE = 'math-coach-v8';
+const CACHE = 'math-coach-v9';
 const ASSETS = [
   '/math-coach/',
   '/math-coach/index.html',
   '/math-coach/manifest.json',
   '/math-coach/icon-192.png',
-  '/math-coach/icon-512.png'
+  '/math-coach/icon-512.png',
+  '/math-coach/mascot.png'
 ];
 
 self.addEventListener('install', event => {
@@ -14,19 +15,15 @@ self.addEventListener('install', event => {
       try {
         const res = await fetch(url, { cache: 'no-cache' });
         if(res.ok) await cache.put(url, res.clone());
-      } catch(_) { /* 누락 허용 */ }
+      } catch(_) {}
     }
   })());
   self.skipWaiting();
 });
-
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE && caches.delete(k))))
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k!==CACHE && caches.delete(k)))));
   self.clients.claim();
 });
-
 self.addEventListener('fetch', event => {
   const req = event.request;
   const url = new URL(req.url);
@@ -37,9 +34,7 @@ self.addEventListener('fetch', event => {
     }
     event.respondWith(
       caches.match(req).then(res => res || fetch(req).then(r=>{
-        const copy = r.clone();
-        caches.open(CACHE).then(c=>c.put(req, copy));
-        return r;
+        const copy=r.clone(); caches.open(CACHE).then(c=>c.put(req, copy)); return r;
       }).catch(()=>res))
     );
   }
