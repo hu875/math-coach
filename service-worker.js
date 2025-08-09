@@ -1,11 +1,12 @@
-const CACHE = 'math-coach-v9';
+const CACHE = 'math-coach-v10';
 const ASSETS = [
   '/math-coach/',
   '/math-coach/index.html',
   '/math-coach/manifest.json',
   '/math-coach/icon-192.png',
   '/math-coach/icon-512.png',
-  '/math-coach/mascot.png'
+  '/math-coach/mascot.png',
+  '/math-coach/bg.jpg'
 ];
 
 self.addEventListener('install', event => {
