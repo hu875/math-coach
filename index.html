@@ -3,11 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>수학 풀이 코칭 v0.2</title>
+  <title>수학 풀이 코칭 v0.3</title>
 
   <!-- PWA 연결: GitHub Pages 하위 경로(/math-coach/) 기준 -->
   <link rel="manifest" href="/math-coach/manifest.json">
   <meta name="theme-color" content="#0f1220">
+
+  <!-- OCR: Tesseract.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     :root { --bg:#0f1220; --card:#171a2b; --accent:#6ea8fe; --text:#e9edf5; --muted:#9aa3b2; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; }
@@ -35,26 +38,54 @@
     .warn{color:var(--warn);font-weight:600}
     .steps ol{margin:10px 0 0 18px}
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #2a2e44;background:#0f1220;color:#cfd6ea}
-    footer{padding:16px 20px;color:var(--muted);font-size:12px;border-top:1px solid #23263a}
+    footer{padding:16px 20px;color:#9aa3b2;font-size:12px;border-top:1px solid #23263a}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     @media(max-width:800px){.grid{grid-template-columns:1fr}}
+    .small{font-size:12px;color:#9aa3b2}
+    .progress{height:6px;background:#0b1020;border-radius:999px;overflow:hidden;margin-top:8px}
+    .bar{height:100%;width:0;background:#6ea8fe;transition:width .2s}
   </style>
 </head>
 <body>
 <header>
-  <h1>수학 풀이 코칭 v0.2</h1>
-  <p>정답이 아니라 “과정”을 배웁니다. 힌트 → 단계 → 검산 순서로 보세요. <span class="badge">학습 보조용</span></p>
+  <h1>수학 풀이 코칭 v0.3</h1>
+  <p>사진 → 글자 인식(OCR) → 수식 변환 → 단계 풀이/검산. <span class="badge">학습 보조용</span></p>
 </header>
 
 <div class="container">
 
-  <!-- 빠른 입력(텍스트 자동 파서) -->
+  <!-- 사진으로 입력 -->
+  <section class="card" id="camera-input">
+    <h3>사진으로 입력(카메라/앨범)</h3>
+    <div class="row">
+      <div class="col">
+        <input id="img-file" type="file" accept="image/*" capture="environment">
+        <div class="progress"><div class="bar" id="ocr-bar"></div></div>
+        <p class="small">깨끗한 인쇄물, 수식만 보이게 찍을수록 인식률이 좋아집니다. (필기는 초기에 정확도가 낮을 수 있어요)</p>
+      </div>
+      <div class="col">
+        <label>인식된 텍스트(검토/수정 가능)</label>
+        <input id="ocr-text" placeholder="예: 2x+3=11  /  x^2-5x+6=0  /  2x+y=11, x+y=8">
+        <div class="btns">
+          <select id="qi-type">
+            <option value="auto">자동 판별</option>
+            <option value="linear">1차 방정식</option>
+            <option value="quadratic">이차 방정식(=0)</option>
+            <option value="system">연립(2×2)</option>
+          </select>
+          <button id="qi-fill" class="primary">채우고 풀이로 이동</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 빠른 입력(텍스트) -->
   <section class="card" id="quick-input">
     <h3>텍스트로 빠르게 입력</h3>
     <div class="row">
       <div class="col">
         <label>유형</label>
-        <select id="qi-type">
+        <select id="qi-type2">
           <option value="linear">1차 방정식</option>
           <option value="quadratic">이차 방정식(=0 형태)</option>
           <option value="system">연립방정식(2×2)</option>
@@ -66,11 +97,11 @@
       </div>
     </div>
     <div class="btns">
-      <button id="qi-fill" class="primary">채우기</button>
+      <button id="qi-fill2" class="primary">채우기</button>
     </div>
-    <p class="muted">띄어쓰기는 자유예요. 이차는 =0 형태로 입력해 주세요. 연립은 쉼표(,)로 두 식을 구분합니다.</p>
   </section>
 
+  <!-- 탭 -->
   <div class="tabs">
     <div class="tab active" data-tab="linear">1차 방정식</div>
     <div class="tab" data-tab="quadratic">이차 방정식</div>
@@ -163,7 +194,7 @@
 </div>
 
 <footer>
-  © 학습 코칭용 데모. 개인정보를 수집하지 않습니다. 배포·결제 등은 보호자와 상의하세요.
+  © 학습 코칭용 데모. 개인정보를 수집하지 않습니다. <a href="/math-coach/privacy.html" style="color:#6ea8fe">개인정보처리방침</a>
 </footer>
 
 <script>
@@ -430,7 +461,7 @@
     sysResult.innerHTML += `<div class="hint">${(ok1&&ok2)?'<span class="ok">검산 통과</span>':'<span class="bad">검산 실패</span>'} — 식1: ${ (a1*x + b1*y).toFixed(6)} vs ${c1}, 식2: ${(a2*x + b2*y).toFixed(6)} vs ${c2}</div>`;
   };
 
-  // ===== 텍스트 수식 자동 파서 =====
+  // ===== 텍스트 수식 자동 파서 & OCR 연결 =====
   (function(){
     const $ = sel => document.querySelector(sel);
     const tabs = document.querySelectorAll('.tab');
@@ -440,7 +471,16 @@
         document.getElementById(s).style.display = (s===id)?'block':'none';
       });
     }
-    function clean(s){ return s.replace(/\s+/g,'').replace(/−/g,'-').replace(/·/g,'*').toLowerCase(); }
+    function clean(s){
+      return s
+        .replace(/\s+/g,'')
+        .replace(/[−–—]/g,'-')
+        .replace(/[·×x]/g, m => (m==='x'?'x':'*')) // 곱셈 기호 통일(변수 x는 그대로)
+        .replace(/[＝=]/g,'=')
+        .replace(/[Ⅰl]/g,'1')
+        .replace(/Ｏ/g,'0')
+        .toLowerCase();
+    }
     function parseCoeff(raw){
       if(raw==null) return 0;
       if(raw===''||raw==='+') return 1;
@@ -457,7 +497,7 @@
       return {a,b,c};
     }
     function parseQuadratic(str){
-      str=clean(str).replace(/x\^2/g,'x2');
+      str=clean(str).replace(/x\^2/g,'x2'); // x^2 표기 보정
       const m = str.match(/^([+\-]?\d*)x2([+\-]\d*)x([+\-]\d+)=0$/);
       if(!m) return null;
       const a = parseCoeff(m[1]??'');
@@ -487,27 +527,70 @@
     function fillQuadratic(v){ $('#quad-a').value=v.a; $('#quad-b').value=v.b; $('#quad-c').value=v.c; }
     function fillSystem(v){ $('#sys-a1').value=v.a1; $('#sys-b1').value=v.b1; $('#sys-c1').value=v.c1; $('#sys-a2').value=v.a2; $('#sys-b2').value=v.b2; $('#sys-c2').value=v.c2; }
 
-    function onFill(){
-      const type = $('#qi-type').value;
-      const text = $('#qi-text').value;
+    function autoDetect(text){
+      const s = clean(text);
+      if (/[,;\n]/.test(s) && /y/.test(s)) return 'system';
+      if (/x2|x\^2/.test(s)) return 'quadratic';
+      return 'linear';
+    }
+
+    function onFill(choice, sourceId){
+      const type = choice==='auto' ? autoDetect($('#ocr-text').value) : choice;
+      const txt  = sourceId==='ocr' ? $('#ocr-text').value : $('#qi-text').value;
       let v=null;
       if(type==='linear'){
-        v=parseLinear(text); if(!v) return alert('1차 예: 2x+3=11');
+        v=parseLinear(txt); if(!v) return alert('1차 예: 2x+3=11');
         fillLinear(v); activateTab('linear');
       }else if(type==='quadratic'){
-        v=parseQuadratic(text); if(!v) return alert('이차 예: x^2-5x+6=0');
+        v=parseQuadratic(txt); if(!v) return alert('이차 예: x^2-5x+6=0 (=0 형태)');
         fillQuadratic(v); activateTab('quadratic');
       }else{
-        v=parseSystem(text); if(!v) return alert('연립 예: 2x+y=11, x+y=8');
+        v=parseSystem(txt); if(!v) return alert('연립 예: 2x+y=11, x+y=8 (쉼표로 두 식)');
         fillSystem(v); activateTab('system');
       }
+      window.scrollTo({top:document.querySelector('#'+type).offsetTop-10, behavior:'smooth'});
     }
-    document.addEventListener('DOMContentLoaded', ()=>{
-      const btn = document.querySelector('#qi-fill');
-      if(btn) btn.addEventListener('click', onFill);
+
+    // OCR 처리
+    const fileInput = document.getElementById('img-file');
+    const bar = document.getElementById('ocr-bar');
+    fileInput.addEventListener('change', async (e)=>{
+      const f = e.target.files && e.target.files[0];
+      if(!f) return;
+      bar.style.width='0%';
+      try{
+        const { data } = await Tesseract.recognize(f, 'eng', {
+          logger: m => {
+            if(m.status==='recognizing text' && m.progress!=null){
+              bar.style.width = Math.round(m.progress*100)+'%';
+            }
+          }
+        });
+        // 텍스트 정리(불필요한 줄바꿈/공백 제거, 유니코드 기호 보정)
+        let t = (data.text || '').trim()
+          .replace(/\r/g,'')
+          .replace(/[·×]/g,'*')
+          .replace(/[＝=]/g,'=')
+          .replace(/[−–—]/g,'-')
+          .replace(/[^\dxxyy=\+\-\*\/\^\.\,\n]/gi,''); // 수식에 불필요한 문자 제거
+        t = t.split('\n').map(s=>s.trim()).filter(Boolean).join(', ');
+        document.getElementById('ocr-text').value = t || '';
+      }catch(err){
+        alert('OCR 중 오류가 발생했습니다. 사진을 다시 촬영해 주세요.');
+        console.error(err);
+      }finally{
+        setTimeout(()=> bar.style.width='0%', 700);
+      }
+    });
+
+    document.getElementById('qi-fill').addEventListener('click', ()=>{
+      const sel = document.getElementById('qi-type').value; onFill(sel, 'ocr');
+    });
+    document.getElementById('qi-fill2').addEventListener('click', ()=>{
+      const sel = document.getElementById('qi-type2').value; onFill(sel, 'text');
     });
   })();
-  // ===== /텍스트 수식 자동 파서 =====
+  // ===== /자동 파서 & OCR =====
 </script>
 
 <!-- 서비스워커 등록: body 끝에 두세요 -->
