@@ -1,4 +1,4 @@
-const CACHE = 'math-coach-v10';
+const CACHE = 'math-coach-v11';
 const ASSETS = [
   '/math-coach/',
   '/math-coach/index.html',
