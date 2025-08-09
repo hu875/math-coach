@@ -390,4 +390,133 @@
       li3.textContent = 'Δ≠0 → 유일해가 존재합니다. 다음 단계로 진행합니다.';
     }
     sysOl.appendChild(li3);
-    gate.sys.
+    gate.sys.s2=true; gate.sys.ans=false;
+  };
+
+  document.getElementById('sys-answer').onclick = ()=>{
+    if(!(gate.sys.s1 && gate.sys.s2)){alert('힌트를 모두 본 뒤 정답을 확인할 수 있습니다.');return;}
+    const a1=+document.getElementById('sys-a1').value;
+    const b1=+document.getElementById('sys-b1').value;
+    const c1=+document.getElementById('sys-c1').value;
+    const a2=+document.getElementById('sys-a2').value;
+    const b2=+document.getElementById('sys-b2').value;
+    const c2=+document.getElementById('sys-c2').value;
+    const Δ = a1*b2 - b1*a2;
+    if(Δ===0){ sysResult.innerHTML = '<div class="hint warn">Δ=0 상태 — 유일해 없음(특수 케이스)</div>'; return; }
+    const Δx = c1*b2 - b1*c2;
+    const Δy = a1*c2 - c1*a2;
+    const xStr = simpFrac(Δx, Δ);
+    const yStr = simpFrac(Δy, Δ);
+    const x=Δx/Δ, y=Δy/Δ;
+    sysResult.innerHTML = `<div class="hint"><strong>정답:</strong> x = ${xStr}, y = ${yStr} (x≈${x.toFixed(6)}, y≈${y.toFixed(6)})</div>
+      <div class="hint">Cramer: x=Δx/Δ, y=Δy/Δ where Δ=${Δ}, Δx=${Δx}, Δy=${Δy}</div>`;
+    gate.sys.ans=true;
+  };
+
+  document.getElementById('sys-verify').onclick = ()=>{
+    if(!gate.sys.ans){alert('정답 확인 후 검산하세요.');return;}
+    const a1=+document.getElementById('sys-a1').value;
+    const b1=+document.getElementById('sys-b1').value;
+    const c1=+document.getElementById('sys-c1').value;
+    const a2=+document.getElementById('sys-a2').value;
+    const b2=+document.getElementById('sys-b2').value;
+    const c2=+document.getElementById('sys-c2').value;
+    const Δ = a1*b2 - b1*a2;
+    if(Δ===0){ return; }
+    const x=(c1*b2 - b1*c2)/Δ;
+    const y=(a1*c2 - c1*a2)/Δ;
+    const ok1 = Math.abs(a1*x + b1*y - c1)<1e-9;
+    const ok2 = Math.abs(a2*x + b2*y - c2)<1e-9;
+    sysResult.innerHTML += `<div class="hint">${(ok1&&ok2)?'<span class="ok">검산 통과</span>':'<span class="bad">검산 실패</span>'} — 식1: ${ (a1*x + b1*y).toFixed(6)} vs ${c1}, 식2: ${(a2*x + b2*y).toFixed(6)} vs ${c2}</div>`;
+  };
+
+  // ===== 텍스트 수식 자동 파서 =====
+  (function(){
+    const $ = sel => document.querySelector(sel);
+    const tabs = document.querySelectorAll('.tab');
+    function activateTab(id){
+      tabs.forEach(t=>{ t.classList.toggle('active', t.dataset.tab===id); });
+      ['linear','quadratic','system'].forEach(s=>{
+        document.getElementById(s).style.display = (s===id)?'block':'none';
+      });
+    }
+    function clean(s){ return s.replace(/\s+/g,'').replace(/−/g,'-').replace(/·/g,'*').toLowerCase(); }
+    function parseCoeff(raw){
+      if(raw==null) return 0;
+      if(raw===''||raw==='+') return 1;
+      if(raw==='-') return -1;
+      return parseFloat(raw);
+    }
+    function parseLinear(str){
+      str=clean(str);
+      const m = str.match(/^([+\-]?\d*)x(?:([+\-]\d+))?=([+\-]?\d+(?:\.\d+)?)$/);
+      if(!m) return null;
+      const a = parseCoeff(m[1]??'');
+      const b = m[2]? parseFloat(m[2].replace('+','')):0;
+      const c = parseFloat(m[3]);
+      return {a,b,c};
+    }
+    function parseQuadratic(str){
+      str=clean(str).replace(/x\^2/g,'x2');
+      const m = str.match(/^([+\-]?\d*)x2([+\-]\d*)x([+\-]\d+)=0$/);
+      if(!m) return null;
+      const a = parseCoeff(m[1]??'');
+      const b = parseCoeff(m[2]??'');
+      const c = parseFloat(m[3]);
+      return {a,b,c};
+    }
+    function parseEq2(eq){
+      eq=clean(eq);
+      const mx = eq.match(/([+\-]?\d*)x/);
+      const my = eq.match(/([+\-]?\d*)y/);
+      const mr = eq.match(/=([+\-]?\d+(?:\.\d+)?)/);
+      if(!mx || !my || !mr) return null;
+      const a = parseCoeff(mx[1]??'');
+      const b = parseCoeff(my[1]??'');
+      const c = parseFloat(mr[1]);
+      return {a,b,c};
+    }
+    function parseSystem(str){
+      const parts = clean(str).split(/[,;]|(?:\r?\n)/).filter(Boolean);
+      if(parts.length!==2) return null;
+      const e1=parseEq2(parts[0]); const e2=parseEq2(parts[1]);
+      if(!e1||!e2) return null;
+      return {a1:e1.a,b1:e1.b,c1:e1.c,a2:e2.a,b2:e2.b,c2:e2.c};
+    }
+    function fillLinear(v){ $('#lin-a').value=v.a; $('#lin-b').value=v.b; $('#lin-c').value=v.c; }
+    function fillQuadratic(v){ $('#quad-a').value=v.a; $('#quad-b').value=v.b; $('#quad-c').value=v.c; }
+    function fillSystem(v){ $('#sys-a1').value=v.a1; $('#sys-b1').value=v.b1; $('#sys-c1').value=v.c1; $('#sys-a2').value=v.a2; $('#sys-b2').value=v.b2; $('#sys-c2').value=v.c2; }
+
+    function onFill(){
+      const type = $('#qi-type').value;
+      const text = $('#qi-text').value;
+      let v=null;
+      if(type==='linear'){
+        v=parseLinear(text); if(!v) return alert('1차 예: 2x+3=11');
+        fillLinear(v); activateTab('linear');
+      }else if(type==='quadratic'){
+        v=parseQuadratic(text); if(!v) return alert('이차 예: x^2-5x+6=0');
+        fillQuadratic(v); activateTab('quadratic');
+      }else{
+        v=parseSystem(text); if(!v) return alert('연립 예: 2x+y=11, x+y=8');
+        fillSystem(v); activateTab('system');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const btn = document.querySelector('#qi-fill');
+      if(btn) btn.addEventListener('click', onFill);
+    });
+  })();
+  // ===== /텍스트 수식 자동 파서 =====
+</script>
+
+<!-- 서비스워커 등록: body 끝에 두세요 -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/math-coach/service-worker.js').catch(console.error);
+    });
+  }
+</script>
+</body>
+</html>
