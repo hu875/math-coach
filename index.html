@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>수학 코칭 v1.1</title>
+  <title>수학 코칭 v1.2</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/math-coach/manifest.json">
   <meta name="theme-color" content="#ffffff">
 
-  <!-- 라이브러리: Tesseract.js(고정밀 OCR), OpenCV.js(보정/테두리/기울기) -->
+  <!-- 라이브러리: Tesseract.js(고정밀 OCR), OpenCV.js(선택) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script async src="https://docs.opencv.org/4.x/opencv.js" onload="cvReady()" onerror="cvError()"></script>
 
@@ -24,13 +24,12 @@
       margin:0;color:var(--text);
       background: linear-gradient(180deg,#f9fbff 0%, #ffffff 30%, #f7f8ff 100%) no-repeat fixed;
     }
-    /* 헤더(앱 느낌) */
     header{padding:14px 16px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:30}
     header .wrap{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:10px}
     header img{width:32px;height:32px;border-radius:10px;object-fit:cover;background:#f3f4f6}
     header h1{margin:0;font-size:18px;font-weight:800}
     header p{margin:0;color:var(--muted);font-size:12px}
-    /* 컨테이너/카드 */
+
     .container{max-width:980px;margin:0 auto;padding:16px 16px 96px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
     .row{display:flex;gap:12px;flex-wrap:wrap}
@@ -107,7 +106,6 @@
         </div>
 
         <div class="btns" style="margin-top:10px">
-          <button id="btn-auto" title="문장 덩어리를 자동으로 찾아 맞춥니다(베타)">영역 자동 맞춤(베타)</button>
           <button id="btn-reset">영역 초기화</button>
           <button id="btn-lock" class="pill">🔒 영역 잠그기</button>
           <button id="btn-boost" class="pill">✨ 사진 선명도 올리기</button>
@@ -121,7 +119,7 @@
       <div class="col">
         <label>진행 상태</label>
         <div class="hint">
-          <span class="tag" id="tag-cv">사진 보정: 로딩 중</span>
+          <span class="tag" id="tag-cv">사진 보정: 준비</span>
           <span class="tag" id="tag-ocr">읽기: 대기</span>
           <span class="tag" id="tag-type">유형: -</span>
           <span class="tag" id="tag-lock">잠금: 해제</span>
@@ -133,7 +131,7 @@
     </div>
   </section>
 
-  <!-- 결과(문제집 스타일 친절 해설) -->
+  <!-- 결과(친절 해설) -->
   <section class="card" id="result" style="display:none">
     <div class="title">풀이 결과</div>
     <div id="summary" class="hint"></div>
@@ -145,7 +143,7 @@
     <div id="verify" class="hint">-</div>
   </section>
 
-  <!-- 도형 문제(베타) -->
+  <!-- 도형(베타) -->
   <section class="card" id="geom" style="display:none">
     <div class="title">도형 감지(베타)</div>
     <div id="geom-summary" class="hint"></div>
@@ -159,13 +157,12 @@
     <div class="title">안내</div>
     <ul class="muted" style="margin:6px 0 0 18px">
       <li>학습 보조용입니다. 정답만 보기보다 “이유/과정/검산”을 함께 보세요.</li>
-      <li>필기 사진은 정확도가 떨어질 수 있어요. “사진 선명도 올리기” 후 박스를 더 크게 잡아 주세요.</li>
+      <li>필기 사진은 정확도가 떨어질 수 있어요. “사진 선명도 올리기” 후 박스를 크게 잡아 주세요.</li>
       <li>개인정보를 수집하지 않습니다. <a href="/math-coach/privacy.html" style="color:#2563eb">개인정보처리방침</a></li>
     </ul>
   </section>
 </div>
 
-<!-- 하단 내비(앱 느낌) -->
 <nav>
   <div class="nav-wrap">
     <button id="nav-home">홈</button>
@@ -176,12 +173,8 @@
 
 <script>
   // 상태 태그
-  const tagCV  = document.getElementById('tag-cv');
-  const tagOCR = document.getElementById('tag-ocr');
-  const tagType= document.getElementById('tag-type');
-  const tagLock= document.getElementById('tag-lock');
-  function cvReady(){ tagCV.textContent='사진 보정: 준비'; }
-  function cvError(){ tagCV.textContent='사진 보정: 실패'; }
+  function cvReady(){ document.getElementById('tag-cv').textContent='사진 보정: 준비'; }
+  function cvError(){ document.getElementById('tag-cv').textContent='사진 보정: 실패'; }
 
   // 요소
   const fileInput = document.getElementById('img-file');
@@ -192,7 +185,6 @@
   const recognized = document.getElementById('recognized');
   const bar = document.getElementById('ocr-bar');
 
-  const btnAuto = document.getElementById('btn-auto');
   const btnReset= document.getElementById('btn-reset');
   const btnLock = document.getElementById('btn-lock');
   const btnSolve= document.getElementById('btn-solve');
@@ -231,14 +223,14 @@
     return null;
   }
 
-  // 잠금 토글(고정)
+  // 잠금 토글
   btnLock.onclick = ()=>{
     LOCKED = !LOCKED;
-    tagLock.textContent = '잠금: ' + (LOCKED?'ON':'해제');
+    document.getElementById('tag-lock').textContent = '잠금: ' + (LOCKED?'ON':'해제');
     btnLock.innerHTML = LOCKED ? '🔓 영역 풀기' : '🔒 영역 잠그기';
   };
 
-  // 포인터 이벤트(잠금 시 무시)
+  // 포인터(이동/리사이즈)
   wrap.addEventListener('pointerdown', (e)=>{
     if(!imgLoaded || LOCKED) return;
     const dir = hitHandle(e.clientX,e.clientY);
@@ -279,7 +271,7 @@
   });
   window.addEventListener('pointerup', (e)=>{ drag.mode='none'; drag.dir=null; try{wrap.releasePointerCapture?.(e.pointerId);}catch(_){}});
 
-  // 파일 선택 → 미리보기 + 기본 박스 + 안내
+  // 파일 선택 → 미리보기/기본 박스/가이드
   fileInput.addEventListener('change', (e)=>{
     const f = e.target.files && e.target.files[0];
     resetOutputs();
@@ -289,7 +281,7 @@
       imgW=img.naturalWidth; imgH=img.naturalHeight; imgLoaded=true;
       img.style.display='block';
       guide.style.display='block';
-      setTimeout(()=>{ guide.style.display='none'; initDefaultRect(); }, 900);
+      setTimeout(()=>{ guide.style.display='none'; if(!LOCKED) initDefaultRect(); }, 900);
     };
     img.src = url;
   });
@@ -297,7 +289,8 @@
   function resetOutputs(){
     document.getElementById('result').style.display='none';
     document.getElementById('geom').style.display='none';
-    recognized.textContent=''; tagType.textContent='유형: -'; tagOCR.textContent='읽기: 대기';
+    recognized.textContent=''; document.getElementById('tag-type').textContent='유형: -';
+    document.getElementById('tag-ocr').textContent='읽기: 대기';
   }
 
   // 하단 내비
@@ -305,312 +298,179 @@
   navAlbum.onclick = ()=> fileInput.click();
   navSolve.onclick = ()=> btnSolve.click();
 
-  // 자동 맞춤(윤곽 최대 사각)
-  function toCanvas(image){
-    const c=document.createElement('canvas'); c.width=image.naturalWidth||image.width; c.height=image.naturalHeight||image.height;
-    c.getContext('2d').drawImage(image,0,0,c.width,c.height); return c;
-  }
-  function autoDetectRect(canvas){
-    if(typeof cv==='undefined') return null;
-    let src=cv.imread(canvas), gray=new cv.Mat(), blur=new cv.Mat(), edges=new cv.Mat();
-    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY); cv.GaussianBlur(gray,blur,new cv.Size(5,5),0); cv.Canny(blur, edges, 50,150,3,false);
-    let kernel=cv.Mat.ones(3,3,cv.CV_8U), dil=new cv.Mat(); cv.dilate(edges,dil,kernel);
-    let contours=new cv.MatVector(), hierarchy=new cv.Mat(); cv.findContours(dil, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    let best=null, bestArea=0;
-    for(let i=0;i<contours.size();i++){ let r=cv.boundingRect(contours.get(i)); const a=r.width*r.height; if(a>bestArea){bestArea=a; best=r;} }
-    gray.delete(); blur.delete(); edges.delete(); kernel.delete(); dil.delete(); contours.delete(); hierarchy.delete(); src.delete();
-    if(bestArea<1000) return null; return {x:best.x,y:best.y,w:best.width,h:best.height};
-  }
-  btnAuto.onclick = ()=>{
-    if(!imgLoaded || typeof cv==='undefined'){ alert('먼저 사진을 선택해 주세요.'); return; }
-    try{
-      const m = autoDetectRect(toCanvas(img));
-      if(!m){ alert('자동으로 찾기 어려워요. 네모를 손으로 맞춰 주세요.'); return; }
-      const sx = img.clientWidth/(img.naturalWidth||imgW), sy = img.clientHeight/(img.naturalHeight||imgH);
-      rect = {x:Math.round(m.x*sx), y:Math.round(m.y*sy), w:Math.round(m.w*sx), h:Math.round(m.h*sy)}; showRect(rect);
-    }catch(e){ console.warn(e); alert('자동 맞춤 중 문제가 발생했어요. 직접 조정해 주세요.'); }
-  };
-  btnReset.onclick = ()=>{ if(imgLoaded){ initDefaultRect(); LOCKED=false; tagLock.textContent='잠금: 해제'; btnLock.innerHTML='🔒 영역 잠그기'; } };
+  btnReset.onclick = ()=>{ if(imgLoaded){ initDefaultRect(); LOCKED=false; document.getElementById('tag-lock').textContent='잠금: 해제'; btnLock.innerHTML='🔒 영역 잠그기'; } };
   btnBoost.onclick = ()=>{ BOOST=!BOOST; btnBoost.innerHTML = BOOST? '🔄 기본 선명도로' : '✨ 사진 선명도 올리기'; };
 
-  // 1) 선택 영역 캔버스화 + 스케일업
+  // 글자 크게 만드는 크롭(스케일 업)
   function cropToCanvas(){
-    if(!imgLoaded || rect.w<24 || rect.h<24){ alert('문제만 보이도록 네모를 더 크게 맞춰 주세요.'); return null; }
-    const sx = (img.naturalWidth||imgW)/img.clientWidth, sy = (img.naturalHeight||imgH)/img.clientHeight;
-    const x=Math.round(rect.x*sx), y=Math.round(rect.y*sy), w=Math.round(rect.w*sx), h=Math.round(rect.h*sy);
-    const scale = BOOST ? 2.6 : 2.2; // 글자를 더 크게 키워 인식률↑
-    const c=document.createElement('canvas'); c.width=Math.round(w*scale); c.height=Math.round(h*scale);
-    const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    if(!imgLoaded || rect.w<24 || rect.h<24){
+      alert('문제만 보이도록 네모를 더 크게 맞춰 주세요.');
+      return null;
+    }
+    const sx = (img.naturalWidth||imgW)/img.clientWidth;
+    const sy = (img.naturalHeight||imgH)/img.clientHeight;
+    const x = Math.round(rect.x*sx), y = Math.round(rect.y*sy);
+    const w = Math.round(rect.w*sx), h = Math.round(rect.h*sy);
+    const scale = BOOST ? 2.6 : 2.2; // 인식률↑
+    const c = document.createElement('canvas');
+    c.width = Math.round(w*scale);
+    c.height = Math.round(h*scale);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, x,y,w,h, 0,0,c.width,c.height);
     return c;
   }
 
-  // 2) 전처리(대비/이진화/모폴로지/기울기 보정)
-  function preprocessBase(cnv, mode){ // 'otsu' | 'adaptive'
-    const out=document.createElement('canvas');
-    try{
-      if(typeof cv==='undefined') return cnv;
-      let src=cv.imread(cnv), gray=new cv.Mat(), den=new cv.Mat(), th=new cv.Mat();
-      cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
-      if(cv.createCLAHE){ const clahe=cv.createCLAHE(2.0, new cv.Size(8,8)); clahe.apply(gray, gray); clahe.delete(); }
-      if(mode==='adaptive'){ cv.bilateralFilter(gray, den, 7, 50, 50); cv.adaptiveThreshold(den, th, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 17, 5); }
-      else{ cv.GaussianBlur(gray, den, new cv.Size(3,3), 0); cv.threshold(den, th, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU); }
-      if(BOOST){ let k=cv.Mat.ones(2,2,cv.CV_8U); cv.morphologyEx(th, th, cv.MORPH_OPEN, k); cv.morphologyEx(th, th, cv.MORPH_CLOSE, k); k.delete(); }
-      // 기울기 보정
-      let edges=new cv.Mat(), lines=new cv.Mat(); cv.Canny(th, edges, 60,140);
-      cv.HoughLinesP(edges, lines, 1, Math.PI/180, 90, 50, 12);
-      let ang=0,cnt=0; for(let i=0;i<lines.rows;i++){ const p=lines.intPtr(i); const dg = Math.atan2(p[3]-p[1], p[2]-p[0])*180/Math.PI; if(Math.abs(dg)<25){ ang+=dg; cnt++; } }
-      if(cnt>0){ ang/=cnt; const center=new cv.Point(th.cols/2, th.rows/2); const M=cv.getRotationMatrix2D(center, ang, 1); const dst=new cv.Mat(); cv.warpAffine(th,dst,M,new cv.Size(th.cols,th.rows),cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar(255,255,255,255)); th.delete(); th=dst; }
-      out.width=th.cols; out.height=th.rows; cv.imshow(out, th);
-      src.delete(); gray.delete(); den.delete(); th.delete(); edges.delete(); lines.delete();
-      return out;
-    }catch(e){ console.warn('preprocess error', e); return cnv; }
-  }
-
-  // 3) 후보 생성: 전처리(otsu/adaptive) × 회전(−1.2°/0°/+1.2°) × PSM(6/7)
-  function rotateCanvas(cnv, deg){
-    const r=document.createElement('canvas'), rad=deg*Math.PI/180;
-    const w=cnv.width,h=cnv.height, c=r.getContext('2d');
-    // 충분한 여백으로 캔버스 확장
-    const diag=Math.ceil(Math.sqrt(w*w+h*h)); r.width=diag; r.height=diag;
-    c.translate(diag/2,diag/2); c.rotate(rad); c.drawImage(cnv, -w/2, -h/2);
-    return r;
-  }
-
-  // 4) OCR(고정밀 학습데이터 + PSM + 화이트리스트) + 스코어
-  async function ocrOnce(source, psm){
-    const langPath='https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/4.1.0';
-    const opt={
-      langPath,
-      tessedit_pageseg_mode: psm, // 6(문단) 또는 7(한 줄)
-      oem: 1, // LSTM_ONLY
-      tessedit_char_whitelist: '0123456789xXyY()+-*/=<>&^.,≤≥<>',
-      tessedit_char_blacklist: '{}[]\\|`~;:"\''
+  // 수식 전용 OCR(PSM7 → 6, 고정밀 모델 + 후처리)
+  async function ocrMathStrong(canvas) {
+    const langPath = 'https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/4.1.0';
+    const tryOnce = async (psm) => {
+      const { data } = await Tesseract.recognize(canvas, 'eng+kor', {
+        langPath,
+        oem: 1,                     // LSTM 전용(정확도↑)
+        tessedit_pageseg_mode: psm, // 7: 한 줄 수식, 6: 문단
+        tessedit_char_whitelist: '0123456789xXyY()+-*/=<>&^.,≤≥<>',
+        tessedit_char_blacklist: '{}[]\\|`~;:"\''
+      });
+      return postClean(data.text || '', data.confidence || 0);
     };
-    const { data } = await Tesseract.recognize(source, 'eng+kor', opt);
-    // 후처리: 흔한 치환
-    let t=(data.text||'')
-      .replace(/\r/g,'')
-      .replace(/[·×]/g,'*')
-      .replace(/[＝=]/g,'=')
-      .replace(/[−–—]/g,'-')
-      .replace(/Ｏ/g,'0')
-      .replace(/(?<=\d)[lI](?=\d)/g,'1'); // 숫자 사이 l/I → 1
-    // 수학 문자 외 노이즈 제거(문제 서술형 보호 위해 한글/영문은 유지하되, 수식 후보 결정시엔 필터 사용)
-    const mathOnly = t.replace(/[^0-9a-zA-Z가-힣\s\(\)\+\-\*\/=<>&\^\,\.\u2264\u2265<>]/g,'');
-    return { text: t.trim(), mathOnly: mathOnly.trim(), conf: data.confidence||0 };
+    const a = await tryOnce(7);
+    if (isGood(a)) return a.clean;
+    const b = await tryOnce(6);
+    return (a.score >= b.score ? a.clean : b.clean);
+  }
+  function postClean(s, conf) {
+    let t = (s || '')
+      .replace(/\r/g, '')
+      .replace(/[·×]/g, '*')
+      .replace(/[＝=]/g, '=')
+      .replace(/[−–—]/g, '-')
+      .replace(/Ｏ/g, '0')
+      .replace(/(?<=\d)[lI](?=\d)/g, '1'); // 숫자 사이 l/I → 1
+    const mathOnly = t.replace(/[^0-9a-zA-Z가-힣\s\(\)\+\-\*\/=<>&\^\,\.\u2264\u2265<>]/g, '');
+    const bonus = (/x\^?2|=|[<>]|y\s*=|x\s*=|[,;].*x.*y/.test(mathOnly) ? 12 : 0);
+    return { clean: mathOnly.trim() || t.trim(), score: (conf || 0) + bonus };
+  }
+  function isGood(res) {
+    if (!res) return false;
+    return /[=xy<>]/i.test(res.clean || '') && (res.clean || '').length >= 5;
   }
 
-  function tryParseBonus(s){
-    // 파싱 성공 시 가산점(식 구조가 말이 되면 높은 점수)
-    const raw=s.toLowerCase().replace(/\s+/g,'');
-    const linear = /^([+\-]?\d*\.?\d*)x([+\-]\d*\.?\d*)?=([+\-]?\d+\.?\d*)$/;
-    const quad   = /^([+\-]?\d*\.?\d*)x\^?2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/;
-    const sys    = /x.*y=.*[,;].*x.*y=.*/;
-    const ineq   = /[><]=?|≤|≥/;
-    const func   = /y=.+[,;].*y=.*/;
-    if(linear.test(raw)) return 12;
-    if(quad.test(raw))   return 12;
-    if(sys.test(raw))    return 10;
-    if(func.test(raw))   return 8;
-    if(ineq.test(raw))   return 6;
-    return 0;
-  }
-
-  async function bestOCR(cnv){
-    tagOCR.textContent='읽기: 진행중'; bar.style.width='0%';
-    const candidates=[];
-    const base1 = preprocessBase(cnv, 'otsu');
-    const base2 = preprocessBase(cnv, 'adaptive');
-
-    const variants = [];
-    [-1.2, 0, 1.2].forEach(d=>{
-      [base1, base2].forEach(b=> variants.push(d===0? b : rotateCanvas(b, d)));
-    });
-
-    let done=0, total=variants.length*2; // psm 6/7
-    for(const v of variants){
-      for(const psm of [6,7]){
-        try{
-          const r=await ocrOnce(v, psm);
-          const bonus = tryParseBonus(r.mathOnly);
-          const penalty = (r.mathOnly.match(/[^0-9a-zA-Z가-힣\(\)\+\-\*\/=<>&\^\,\.\s\u2264\u2265<>]/g)||[]).length>0 ? -3 : 0;
-          const score = (r.conf||0) + bonus + penalty;
-          candidates.push({score, ...r});
-        }catch(e){ /* skip */ }
-        done++; bar.style.width = Math.round(done/total*100)+'%';
-      }
-    }
-    // 최고 점수 선택
-    candidates.sort((a,b)=> b.score-a.score);
-    const top = candidates[0] || {text:'', mathOnly:'', conf:0, score:0};
-    // 최종 텍스트(식 위주)
-    const finalText = top.mathOnly.length>=5 ? top.mathOnly : top.text;
-    recognized.textContent = finalText;
-    tagOCR.textContent = '읽기: 완료';
-    setTimeout(()=> bar.style.width='0%', 600);
-    return finalText;
-  }
-
-  // “풀기” 클릭 → 영역 고정 상태 유지
-  document.getElementById('btn-solve').onclick = async ()=>{
-    if(!imgLoaded){ alert('먼저 사진을 올려 주세요.'); return; }
-    const cnv = cropToCanvas(); if(!cnv) return;
-    const text = await bestOCR(cnv);
-    if(!text){ alert('읽은 내용이 없어요. 네모를 문제에 딱 맞추고, 더 밝게 찍어 주세요.'); return; }
-    await solveFromText(text);
-  };
-
-  // 분류/해설(문제집 톤) — (대수/연립/이차/부등식/함수 교점/도형 베타)
-  const resBox=document.getElementById('result'), stepsOl=document.getElementById('steps-ol'), summary=document.getElementById('summary'), verifyBox=document.getElementById('verify');
-
-  function clean(s){
-    return s.toLowerCase().replace(/\s+/g,' ')
-      .replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/＜/g,'<').replace(/＞/g,'>')
-      .replace(/[Ⅰl]/g,'1').replace(/Ｏ/g,'0').trim();
-  }
+  // ── 풀이 엔진(간단형: 1차/이차/연립/부등식/함수 교점) ──
+  const resBox=document.getElementById('result'), stepsOl=document.getElementById('steps-ol'), summary=document.getElementById('summary'), verify=document.getElementById('verify');
+  function clean(s){ return s.toLowerCase().replace(/\s+/g,' ').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/＜/g,'<').replace(/＞/g,'>').replace(/[Ⅰl]/g,'1').replace(/Ｏ/g,'0').trim(); }
   function detectType(t){
     const s=clean(t);
     if(/(삼각형|사각형|원|직선|각|∠|평행|닮음|피타고라스|중점|내심|외심)/.test(s)) return 'geometry';
-    if(/y\s*=/.test(s) && (s.match(/y\s*=/g)||[]).length>=2) return 'func_intersect';
+    if(/y\s*=/.test(s) && (s.match(/y\s*=/g)||[]).length>=2) return 'func';
     if(/[,;].*x.*y/.test(s) || /x\s*\+\s*y\s*=/.test(s)) return 'system';
     if(/(>=|<=|>|<)/.test(s) && /x/.test(s)) return 'ineq';
     if(/x\^?2|x²/.test(s) && /=\s*0/.test(s)) return 'quadratic';
     if(/=\s*/.test(s) && /x/.test(s)) return 'linear';
     return 'unknown';
   }
-  function setType(t){ tagType.textContent='유형: '+({linear:'1차',quadratic:'이차',system:'연립',ineq:'부등식',func_intersect:'함수 교점',geometry:'도형',unknown:'알수없음'}[t]||t); }
-
   const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
-  const frac=(num,den)=>{ if(den===0) return '정의X'; if(num===0) return '0'; const g=gcd(num,den); num/=g; den/=g; if(den<0){den*=-1;num*=-1} return den===1?`${num}`:`${num}/${den}`; };
-
-  function parseLinearStr(s){ const m=s.replace(/\s+/g,'').match(/^([+\-]?\d*\.?\d*)x(?:([+\-]\d+\.?\d*))?=([+\-]?\d+\.?\d*)$/); if(!m) return null; const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])); const B=m[2]?parseFloat(m[2]):0; const C=parseFloat(m[3]); return {a:A,b:B,c:C}; }
-  function parseQuadraticStr(s){ s=s.replace(/x²/g,'x^2').replace(/\s+/g,''); const m=s.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/); if(!m) return null; const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])); const B=(m[2]===''||m[2]==='+')?1:(m[2]==='-'?-1:parseFloat(m[2])); const C=parseFloat(m[3]); return {a:A,b:B,c:C}; }
-  function parseSystemStr(s){ const parts=s.split(/[,;](?![^()]*\))/).map(v=>v.trim()); if(parts.length<2) return null; const re=/([+\-]?\d*\.?\d*)x([+\-]\d*\.?\d*)y=([+\-]?\d+\.?\d*)/; const m1=parts[0].replace(/\s+/g,'').match(re); const m2=parts[1].replace(/\s+/g,'').match(re); if(!m1||!m2) return null; const n=v=>(v===''||v==='+')?1:(v==='-'?-1:parseFloat(v)); return {a1:n(m1[1]),b1:n(m1[2]),c1:parseFloat(m1[3]), a2:n(m2[1]),b2:n(m2[2]),c2:parseFloat(m2[3])}; }
-  function parseIneqStr(s){ const m=s.replace(/\s+/g,'').match(/^([+\-]?\d*\.?\d*)x(?:([+\-]\d+\.?\d*))?(>=|<=|>|<)([+\-]?\d+\.?\d*)$/); if(!m) return null; const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])); const B=m[2]?parseFloat(m[2]):0; return {a:A,b:B,op:m[3],c:parseFloat(m[4])}; }
-  function parseFuncIntersectStr(s){ const eqs=s.toLowerCase().split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/y\s*=\s*([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)?/; if(eqs.length<2) return null; const m1=eqs[0].match(re), m2=eqs[1].match(re); if(!m1||!m2) return null; const C=m=>({k:(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])),n:m[2]?parseFloat(m[2].replace(/\s+/g,'')):0}); const f1=C(m1), f2=C(m2); return {k1:f1.k,n1:f1.n,k2:f2.k,n2:f2.n}; }
+  const frac=(n,d)=>{ if(d===0) return '정의X'; if(n===0) return '0'; const g=gcd(n,d); n/=g; d/=g; if(d<0){d*=-1;n*=-1} return d===1?`${n}`:`${n}/${d}`; };
 
   function renderResult(summaryText, stepsArr, verifyText){
     resBox.style.display='block';
     summary.textContent=summaryText;
     stepsOl.innerHTML='';
     stepsArr.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; stepsOl.appendChild(li); });
-    verifyBox.innerHTML = verifyText.includes('통과')?`<span class="ok">${verifyText}</span>`: (verifyText==='-'?'-':`<span class="warn">${verifyText}</span>`);
+    verify.innerHTML = verifyText.includes('통과')?`<span class="ok">${verifyText}</span>`: (verifyText==='-'?'-':`<span class="warn">${verifyText}</span>`);
     window.scrollTo({top:resBox.offsetTop-10,behavior:'smooth'});
   }
 
-  function explainLinear(eq,x){ return [`상수항을 반대로 옮깁니다. (${eq.a}x = ${eq.c} ${eq.b>=0?'-':'+'} ${Math.abs(eq.b)})`,`x의 계수(${eq.a})로 나눕니다.`,`따라서 x = (${eq.c} - ${eq.b}) / ${eq.a} = ${frac(eq.c-eq.b,eq.a)}`]; }
-  function explainQuadratic(eq,D,x1,x2){ const L1=`표준형 ${eq.a}x² ${eq.b>=0?'+':''}${eq.b}x ${eq.c>=0?'+':''}${eq.c} = 0, 판별식 D=b²-4ac=${D}`; if(D>0){return [L1,`D>0 → 서로 다른 두 실근`,`근의 공식 x = (-b ± √D)/(2a)`,`값을 넣으면 x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`];}else if(D===0){return [L1,`D=0 → 한 근(중근)`,`x = -b/(2a)`,`값을 넣으면 x = ${x1.toFixed(6)}`];}else{return [L1,`D<0 → 실수해 없음`,`복소수: x = (-b ± i√|D|)/(2a)`];} }
-  function explainSystem(eq,x,y){ return [`두 식: ${eq.a1}x ${eq.b1>=0?'+':''}${eq.b1}y = ${eq.c1}, ${eq.a2}x ${eq.b2>=0?'+':''}${eq.b2}y = ${eq.c2}`,`Cramer의 공식 Δ = a₁b₂ − b₁a₂`,`Δ≠0이면 x=Δx/Δ, y=Δy/Δ`,`계산하면 x=${x.toFixed(6)}, y=${y.toFixed(6)}`]; }
-  function explainIneq(eq,ans){ return [`${eq.a}x ${eq.b>=0?'+':''}${eq.b} ${eq.op} ${eq.c}`,`상수항을 정리합니다.`,`양변을 ${eq.a}로 나눌 때 ${eq.a<0?'부등호 방향이 바뀝니다.':'부등호 방향은 유지됩니다.'}`,`따라서 ${ans}`]; }
-  function explainFuncIntersect(eq,x,y){ return [`두 함수 y=${eq.k1}x ${eq.n1>=0?'+':''}${eq.n1}, y=${eq.k2}x ${eq.n2>=0?'+':''}${eq.n2}`,`두 y를 같게 두고 정리: ${(eq.k1-eq.k2)}x = ${eq.n2-eq.n1}`,`x = ${x.toFixed(6)}, y = ${y.toFixed(6)}`]; }
-
-  function renderGeometry(text){
-    const geomSec=document.getElementById('geom'); const gs=analyzeGeometry();
-    const shapes=(gs.shapes||[]).filter(s=>s.n>0).map(s=>`${s.name} ${s.n}개`).join(', ')||'감지 약함(사진 대비/초점 개선 권장)';
-    document.getElementById('geom-summary').textContent=`도형 감지: ${shapes}`;
-    document.getElementById('geom-hint').textContent=gs.hint||'도형의 기본 성질(내각합, 평행선 각, 합동/닮음, 원의 각)을 확인해 보세요.';
-    geomSec.style.display='block'; window.scrollTo({top:geomSec.offsetTop-10,behavior:'smooth'});
-  }
-  function analyzeGeometry(){
-    const out={shapes:[],hint:''};
-    try{
-      if(typeof cv==='undefined' || !imgLoaded) return out;
-      const c=toCanvas(img); let src=cv.imread(c), gray=new cv.Mat(), edges=new cv.Mat();
-      cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY); cv.Canny(gray, edges, 60,120,3,false);
-      let contours=new cv.MatVector(), hierarchy=new cv.Mat(); cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-      let tri=0,quad=0,poly=0; for(let i=0;i<contours.size();i++){ let cnt=contours.get(i), approx=new cv.Mat(); cv.approxPolyDP(cnt, approx, 0.02*cv.arcLength(cnt,true), true); const v=approx.rows; if(v===3) tri++; else if(v===4) quad++; else if(v>4) poly++; approx.delete(); cnt.delete(); }
-      let circles=new cv.Mat(); cv.HoughCircles(gray, circles, cv.HOUGH_GRADIENT, 1, 20, 100, 25, 12, 0); const circleCount=circles.rows;
-      out.shapes=[{name:'삼각형',n:tri},{name:'사각형',n:quad},{name:'다각형',n:poly},{name:'원',n:circleCount}];
-      src.delete(); gray.delete(); edges.delete(); contours.delete(); hierarchy.delete(); circles.delete();
-    }catch(_){}
-    const txt=(recognized.textContent||'').toLowerCase(); let hint=[];
-    if(/피타고라스|직각/.test(txt)) hint.push('직각이면 빗변² = 나머지 두 변²의 합을 씁니다.');
-    if(/닮음|평행/.test(txt)) hint.push('평행선/각 대응 → 닮음비로 길이/각을 구합니다.');
-    if(/중점|삼등분/.test(txt)) hint.push('분할 비율을 좌표/벡터로 표현합니다.');
-    if(/원|접선|현|중심각|원주각/.test(txt)) hint.push('중심각=2×원주각, 접선-현 정리를 확인합니다.');
-    if(hint.length===0) hint.push('핵심 조건을 식으로 바꾸고 각/길이/비를 순서대로 정리하세요.');
-    out.hint=hint.join(' '); return out;
-  }
-
-  async function solveFromText(raw){
-    const t = clean(raw); const typ = detectType(t); setType(typ);
-    document.getElementById('result').style.display='none'; document.getElementById('geom').style.display='none';
+  function solveFromText(raw){
+    const t = clean(raw); const typ=detectType(t);
+    document.getElementById('tag-type').textContent='유형: '+({linear:'1차',quadratic:'이차',system:'연립',ineq:'부등식',func:'함수 교점',geometry:'도형',unknown:'알수없음'}[typ]||typ);
+    document.getElementById('result').style.display='none';
+    document.getElementById('geom').style.display='none';
 
     if(typ==='geometry'){ renderGeometry(t); return; }
 
     if(typ==='linear'){
-      const m = t.match(/([+\-]?\d*\.?\d*)x(?:\s*([+\-]\s*\d+\.?\d*))?\s*=\s*([+\-]?\d+\.?\d*)/i);
-      if(!m){ alert('1차 방정식을 찾지 못했어요. 사진을 조금 더 가깝게 찍어 주세요.'); return; }
-      const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1]));
-      const B=m[2]?parseFloat(m[2].replace(/\s+/g,'')):0;
-      const C=parseFloat(m[3]);
+      const m=t.match(/([+\-]?\d*\.?\d*)x(?:\s*([+\-]\s*\d+\.?\d*))?\s*=\s*([+\-]?\d+\.?\d*)/i);
+      if(!m){ alert('1차 방정식을 찾지 못했어요. 박스를 더 타이트하게 맞춰 주세요.'); return; }
+      const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2].replace(/\s+/g,'')):0, C=parseFloat(m[3]);
       const num=C-B, den=A, x=num/den;
       renderResult(`정답: x = ${frac(num,den)}${Number.isFinite(x)&&!Number.isInteger(x)?` (≈ ${x.toFixed(6)})`:''}`,
         [`상수항을 반대로 옮깁니다. (${A}x = ${C} ${B>=0?'-':'+'} ${Math.abs(B)})`,`x의 계수(${A})로 나눕니다.`,`따라서 x = (${C} - ${B}) / ${A} = ${frac(num,den)}`],
-        Math.abs(A*x+B-C)<1e-9?'검산 통과':'검산 실패');
+        Math.abs(A*x+B-C)<1e-9?'검산 통과':'검산 실패'); return;
+    }
 
-    }else if(typ==='quadratic'){
-      const s=t.replace(/x²/g,'x^2').replace(/\s+/g,'');
-      const q=s.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/);
+    if(typ==='quadratic'){
+      const s2=t.replace(/x²/g,'x^2').replace(/\s+/g,''), q=s2.match(/^([+\-]?\d*\.?\d*)x\^2([+\-]\d*\.?\d*)x([+\-]\d+\.?\d*)=0$/);
       if(!q){ alert('이차 방정식은 =0 형태가 인식이 잘 됩니다.'); return; }
-      const A=(q[1]===''||q[1]==='+')?1:(q[1]==='-'?-1:parseFloat(q[1]));
-      const B=(q[2]===''||q[2]==='+')?1:(q[2]==='-'?-1:parseFloat(q[2]));
-      const C=parseFloat(q[3]);
+      const A=(q[1]===''||q[1]==='+')?1:(q[1]==='-'?-1:parseFloat(q[1])), B=(q[2]===''||q[2]==='+')?1:(q[2]==='-'?-1:parseFloat(q[2])), C=parseFloat(q[3]);
       const D=B*B-4*A*C;
-      if(D>=0){
-        const sD=Math.sqrt(D), x1=(-B+sD)/(2*A), x2=(-B-sD)/(2*A), f=x=>A*x*x+B*x+C;
+      if(D>=0){ const sD=Math.sqrt(D), x1=(-B+sD)/(2*A), x2=(-B-sD)/(2*A), f=x=>A*x*x+B*x+C;
         renderResult(`정답: x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`,
-          [`표준형 ${A}x² ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C} = 0, D=b²-4ac=${D}`,
-           `D>0 → 서로 다른 두 실근`,
-           `근의 공식 x = (-b ± √D)/(2a)`,
-           `값을 넣으면 x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`],
+          [`표준형 ${A}x² ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C} = 0, D=b²-4ac=${D}`,`D>0 → 서로 다른 두 실근`,`근의 공식 x = (-b ± √D)/(2a)`,`값을 넣으면 x ≈ ${x1.toFixed(6)}, ${x2.toFixed(6)}`],
           (Math.abs(f(x1))<1e-6&&Math.abs(f(x2))<1e-6)?'검산 통과':'검산 확인 필요');
       }else{
         renderResult('정답(복소수): x = (−b ± i√|D|)/(2a)',
           [`표준형 ${A}x² ${B>=0?'+':''}${B}x ${C>=0?'+':''}${C} = 0, D=b²-4ac=${D}`,`D<0 → 실수해 없음`,`복소수 범위에서 해를 표현합니다.`],
           '실수 범위 검산 해당 없음');
       }
+      return;
+    }
 
-    }else if(typ==='system'){
+    if(typ==='system'){
       const parts=t.split(/[,;](?![^()]*\))/).map(v=>v.trim());
-      if(parts.length<2){ alert('연립 두 식을 쉼표로 구분하면 인식이 잘 됩니다.'); return; }
       const re=/([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d*\.?\d*)y\s*=\s*([+\-]?\d+\.?\d*)/;
-      const m1=parts[0].match(re), m2=parts[1].match(re);
-      if(!m1||!m2){ alert('연립방정식 해석이 어려워요. 박스를 더 정확히 맞춰 주세요.'); return; }
+      if(parts.length<2){ alert('연립 두 식을 쉼표로 구분하면 인식이 잘 됩니다.'); return; }
+      const m1=parts[0].match(re), m2=parts[1].match(re); if(!m1||!m2){ alert('연립 해석이 어려워요. 박스를 더 정확히 맞춰 주세요.'); return; }
       const n=v=>(v===''||v==='+')?1:(v==='-'?-1:parseFloat(v));
-      const a1=n(m1[1]), b1=n(m1[2].replace(/\s+/g,'')), c1=parseFloat(m1[3]);
-      const a2=n(m2[1]), b2=n(m2[2].replace(/\s+/g,'')), c2=parseFloat(m2[3]);
+      const a1=n(m1[1]), b1=n((m1[2]||'').replace(/\s+/g,'')), c1=parseFloat(m1[3]);
+      const a2=n(m2[1]), b2=n((m2[2]||'').replace(/\s+/g,'')), c2=parseFloat(m2[3]);
       const D=a1*b2-b1*a2; if(D===0){ renderResult('유일해 없음(특수 케이스)',['Δ=0 → 유일해가 존재하지 않습니다.'],'-'); return; }
       const Dx=c1*b2-b1*c2, Dy=a1*c2-c1*a2; const x=Dx/D, y=Dy/D;
       renderResult(`정답: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`,
         [`두 식: ${a1}x ${b1>=0?'+':''}${b1}y = ${c1}, ${a2}x ${b2>=0?'+':''}${b2}y = ${c2}`,`Cramer의 공식 Δ = a₁b₂ − b₁a₂`,`Δ≠0이면 x=Δx/Δ, y=Δy/Δ`,`계산하면 x=${x.toFixed(6)}, y=${y.toFixed(6)}`],
-        (Math.abs(a1*x+b1*y-c1)<1e-9 && Math.abs(a2*x+b2*y-c2)<1e-9)?'검산 통과':'검산 실패');
+        (Math.abs(a1*x+b1*y-c1)<1e-9 && Math.abs(a2*x+b2*y-c2)<1e-9)?'검산 통과':'검산 실패'); return;
+    }
 
-    }else if(typ==='ineq'){
+    if(typ==='ineq'){
       const m=t.replace(/\s+/g,'').match(/^([+\-]?\d*\.?\d*)x(?:([+\-]\d+\.?\d*))?(>=|<=|>|<)([+\-]?\d+\.?\d*)$/);
       if(!m){ alert('부등식 기호(>,<,≥,≤)가 또렷하게 보이게 찍어 주세요.'); return; }
-      const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])); const B=m[2]?parseFloat(m[2]):0; const op=m[3]; const C=parseFloat(m[4]);
+      const A=(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), B=m[2]?parseFloat(m[2]):0, op=m[3], C=parseFloat(m[4]);
       const flip=A<0, op2= flip?({'>':'<','<':'>','>=':'<=','<=':'>='}[op]):op, ans=`x ${op2} ${frac(C-B,A)}`;
       renderResult(`정답: ${ans}`,
         [`${A}x ${B>=0?'+':''}${B} ${op} ${C}`,`상수항을 정리합니다.`,`양변을 ${A}로 나눌 때 ${A<0?'부등호 방향이 바뀝니다.':'부등호 방향은 유지됩니다.'}`,`따라서 ${ans}`],
-        '-');
-
-    }else if(typ==='func_intersect'){
-      const eqs=t.toLowerCase().split(/[,;](?![^()]*\))/).map(v=>v.trim()); const re=/y\s*=\s*([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)?/;
-      if(eqs.length<2){ alert('함수 교점은 y=… 형태 두 개를 쉼표로 구분해 주세요.'); return; }
-      const f=m=>({k:(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), n:m[2]?parseFloat(m[2].replace(/\s+/g,'')):0});
-      const m1=eqs[0].match(re), m2=eqs[1].match(re); if(!m1||!m2){ alert('함수 식을 더 또렷하게 찍어 주세요.'); return; }
-      const a=f(m1), b=f(m2); if(a.k===b.k){ renderResult(a.n===b.n?'무수히 많은 해(같은 직선)':'해 없음(평행)',['기울기가 같으면 평행/동일 직선입니다.'],'-'); return; }
-      const x=(b.n-a.n)/(a.k-b.k), y=a.k*x + a.n;
-      renderResult(`교점: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`,
-        [`두 함수 y=${a.k}x ${a.n>=0?'+':''}${a.n}, y=${b.k}x ${b.n>=0?'+':''}${b.n}`,`두 y를 같게 두고 정리: ${(a.k-b.k)}x = ${b.n-a.n}`,`x = ${x.toFixed(6)}, y = ${y.toFixed(6)}`],
-        '검산 통과');
-
-    }else{
-      alert('문제 유형을 자동으로 판단하기 어려워요. 사진을 더 선명하게 찍고, 네모를 문제에 딱 맞춰 다시 시도해 주세요.');
+        '-'); return;
     }
+
+    if(typ==='func'){
+      const eqs=t.toLowerCase().split(/[,;](?![^()]*\))/).map(v=>v.trim());
+      const re=/y\s*=\s*([+\-]?\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)?/;
+      if(eqs.length<2){ alert('함수 교점은 y=… 형태 두 개를 쉼표로 구분해 주세요.'); return; }
+      const m1=eqs[0].match(re), m2=eqs[1].match(re); if(!m1||!m2){ alert('함수 식을 더 또렷하게 찍어 주세요.'); return; }
+      const Cc=m=>({k:(m[1]===''||m[1]==='+')?1:(m[1]==='-'?-1:parseFloat(m[1])), n:m[2]?parseFloat(m[2].replace(/\s+/g,'')):0});
+      const f1=Cc(m1), f2=Cc(m2); if(f1.k===f2.k){ renderResult(f1.n===f2.n?'무수히 많은 해(같은 직선)':'해 없음(평행)',['기울기가 같으면 평행/동일 직선입니다.'],'-'); return; }
+      const x=(f2.n-f1.n)/(f1.k-f2.k), y=f1.k*x+f1.n;
+      renderResult(`교점: (x, y) = (${x.toFixed(6)}, ${y.toFixed(6)})`,
+        [`두 함수 y=${f1.k}x ${f1.n>=0?'+':''}${f1.n}, y=${f2.k}x ${f2.n>=0?'+':''}${f2.n}`,`두 y를 같게 두고 정리: ${(f1.k-f2.k)}x = ${f2.n-f1.n}`,`x = ${x.toFixed(6)}, y = ${y.toFixed(6)}`],
+        '검산 통과'); return;
+    }
+
+    alert('문제 유형을 자동으로 판단하기 어려워요. 사진을 더 선명하게, 박스를 더 정확히 맞춘 뒤 재시도해 주세요.');
   }
+
+  // “풀기” 버튼: 크롭 → OCR(강화) → 풀이
+  btnSolve.onclick = async ()=>{
+    if(!imgLoaded){ alert('먼저 사진을 올려 주세요.'); return; }
+    document.getElementById('tag-ocr').textContent='읽기: 진행중';
+    bar.style.width='0%';
+    const cnv = cropToCanvas(); if(!cnv) return;
+    const text = await ocrMathStrong(cnv);
+    recognized.textContent = text;
+    document.getElementById('tag-ocr').textContent='읽기: 완료';
+    bar.style.width='0%';
+    if(!text){ alert('읽은 내용이 없어요. 박스를 더 타이트하게 맞추고, 더 밝게 찍어 주세요.'); return; }
+    solveFromText(text);
+  };
 </script>
 
 <!-- 서비스워커 등록 -->
@@ -621,4 +481,3 @@
 </script>
 </body>
 </html>
-
