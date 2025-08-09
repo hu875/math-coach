@@ -1,4 +1,4 @@
-const CACHE = 'math-coach-v13';
+const CACHE = 'math-coach-v14';
 const ASSETS = [
   '/math-coach/',
   '/math-coach/index.html',
@@ -13,10 +13,7 @@ self.addEventListener('install', event => {
   event.waitUntil((async()=>{
     const cache = await caches.open(CACHE);
     for (const url of ASSETS) {
-      try {
-        const res = await fetch(url, { cache: 'no-cache' });
-        if(res.ok) await cache.put(url, res.clone());
-      } catch(_) {}
+      try { const res = await fetch(url, { cache:'no-cache' }); if(res.ok) await cache.put(url, res.clone()); } catch(_) {}
     }
   })());
   self.skipWaiting();
