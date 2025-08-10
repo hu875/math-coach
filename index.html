@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>수학 코칭 v1.7 (Auto-Rotate + Superscript Strong)</title>
+  <title>수학 코칭 v1.8 (Auto-Rotate + Superscript Strong + Hotfix)</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/math-coach/manifest.json">
@@ -33,7 +33,7 @@
     .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .primary{background:var(--accent);border-color:var(--accent);color:#fff}
     .muted{color:var(--muted);font-size:12px}
-    .hint{background:#f9fafb;border:1px solid var(--line);padding:12px;border-radius:12px;margin:8px 0}
+    .hint{background:#f9fafb;border:1px solid var(--line);padding:12px;border-radius:12px;margin:8px 0;white-space:pre-wrap}
     .ok{color:var(--ok);font-weight:700}
     .warn{color:var(--warn);font-weight:700}
     .bad{color:var(--bad);font-weight:700}
@@ -99,7 +99,7 @@
         </div>
 
         <label style="margin-top:8px">읽은 내용</label>
-        <div id="recognized" class="hint" style="min-height:68px;white-space:pre-wrap"></div>
+        <div id="recognized" class="hint">(대기)</div>
       </div>
     </div>
   </section>
@@ -181,7 +181,7 @@
     imgEl.onload=()=>{ imgW=imgEl.naturalWidth; imgH=imgEl.naturalHeight; imgLoaded=true; imgEl.style.display='block'; if(!LOCKED) initRect(); };
     imgEl.src=url;
   });
-  function resetOutputs(){ recognized.textContent=''; document.getElementById('tag-type').textContent='유형: -'; tagOCR.textContent='읽기: 대기'; document.getElementById('result').style.display='none'; }
+  function resetOutputs(){ recognized.textContent='(대기)'; document.getElementById('tag-type').textContent='유형: -'; tagOCR.textContent='읽기: 대기'; document.getElementById('result').style.display='none'; }
 
   // ---------- 크롭(윗첨자 강화를 위해 위 여백↑ + 스케일↑) ----------
   function cropToCanvas(){
@@ -193,7 +193,7 @@
     const sx=(imgEl.naturalWidth||imgW)/imgEl.clientWidth, sy=(imgEl.naturalHeight||imgH)/imgEl.clientHeight;
     const x=Math.round(rx*sx), y=Math.round(ry*sy), w=Math.round(rw*sx), h=Math.round(rh*sy);
 
-    const c=document.createElement('canvas'); const scale=3.0; // 제곱 강화
+    const c=document.createElement('canvas'); const scale=3.0; // 제곱(윗첨자) 강화를 위해 크게
     c.width=Math.round(w*scale); c.height=Math.round(h*scale);
     const g=c.getContext('2d'); g.imageSmoothingEnabled=true; g.imageSmoothingQuality='high'; g.drawImage(imgEl, x,y,w,h, 0,0,c.width,c.height);
     return c;
@@ -423,7 +423,7 @@
 
   // 실행
   async function runSolve(){
-    if(!imgLoaded){ alert('먼저 사진을 올려 주세요.'); return; }
+    if(typeof _cropGuard==='function' && !_cropGuard()) return; // 실행 가드(핫픽스)
     // 1) 크롭 → 2) 자동 회전 → 3) 전처리(회색→필요 시 파랑) → 4) OCR(빠른→보조)
     let cnv=cropToCanvas(); if(!cnv) return;
     cnv = autoOrientCanvas(cnv);
@@ -438,15 +438,63 @@
       }
     }
 
-    recognized.textContent = text || '';
+    recognized.textContent = text || '(없음)';
     tagOCR.textContent = text ? '읽기: 완료' : '읽기: 실패';
     bar.style.width='0%';
 
-    if(!text){ alert('읽은 내용이 없어요. 박스를 더 타이트/밝게 해서 다시 시도해 주세요.'); return; }
+    if(!text || detectType(text)==='unknown'){
+      // 테스트 식으로라도 파이프 확인(핫픽스)
+      const t = 'x^2-3|x|-4=0';
+      recognized.textContent = '읽은 내용(테스트): ' + t;
+      solveFromText(t);
+      return;
+    }
     solveFromText(text);
   }
 
-  document.getElementById('btn-solve').onclick = ()=> runSolve().catch(e=>{ console.error(e); alert('실행 중 오류'); });
+  // ---------- 핫픽스: 버튼-실행 강제 바인딩 + 자가진단 ----------
+  function _showErr(err){
+    console.error('[RUN ERROR]', err);
+    const box = document.getElementById('recognized');
+    if (box) box.textContent = '오류: ' + (err?.message || err);
+    alert('실행 중 오류가 났어요. 박스를 문제식에 딱 맞추고 다시 눌러주세요.');
+  }
+  function _cropGuard(){
+    try {
+      const img = document.getElementById('img-preview');
+      if (!img || img.style.display === 'none' || !img.src) {
+        alert('먼저 사진을 올려 주세요.');
+        return false;
+      }
+      return true;
+    } catch(_) { return true; }
+  }
+  function _quickSelfTest(){
+    try{
+      const t = 'x^2-3|x|-4=0';
+      const rec = document.getElementById('recognized');
+      if (rec) rec.textContent = '읽은 내용(테스트): ' + t;
+      solveFromText(t);
+    }catch(e){ _showErr(e); }
+  }
+  function _bindSolve(){
+    const btn = document.getElementById('btn-solve') || document.getElementById('nav-solve');
+    if (!btn) return;
+    btn.onclick = null;
+    btn.addEventListener('click', async ()=>{
+      try{
+        if (!_cropGuard()) return;
+        if (typeof runSolve === 'function') {
+          const timeout = new Promise((_,rej)=> setTimeout(()=>rej(new Error('실행 타임아웃')), 8000));
+          await Promise.race([runSolve(), timeout]).catch(_showErr);
+        } else {
+          _quickSelfTest();
+        }
+      }catch(e){ _showErr(e); }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', _bindSolve);
+  setTimeout(_bindSolve, 1000);
   document.getElementById('nav-solve').onclick = ()=> document.getElementById('btn-solve').click();
   document.getElementById('nav-home').onclick = ()=> window.scrollTo({top:0,behavior:'smooth'});
   document.getElementById('nav-album').onclick= ()=> document.getElementById('img-file').click();
